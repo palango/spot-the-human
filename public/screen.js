@@ -125,12 +125,13 @@
 
   function renderLobby(v) {
     els.readyLine.textContent = v.readyCount + " ready";
-    // Behind the tunnel the page's own address is the join address; on localhost the QR code carries it.
-    var host = location.hostname;
-    var local = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
-    els.joinUrl.hidden = local;
-    els.joinUrl.textContent = local ? "" : location.origin;
   }
+
+  // The phone address comes from the server's PUBLIC_URL, so it is right even when this page is open on localhost.
+  fetch("/public-url").then(function (r) { return r.text(); }).then(function (url) {
+    els.joinUrl.textContent = url;
+    els.joinUrl.hidden = false;
+  }).catch(function () { /* the QR code still works */ });
 
   function renderRemoval(v) {
     var r = v.removal;

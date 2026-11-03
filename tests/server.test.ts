@@ -373,6 +373,10 @@ describe("server", () => {
     expect(qr.status).toBe(200);
     expect(qr.headers.get("content-type")).toMatch(/^image\/svg\+xml/);
     expect(await qr.text()).toContain("<svg");
+    const url = await fetch(`${base}/public-url`);
+    expect(url.status).toBe(200);
+    expect(url.headers.get("content-type")).toMatch(/^text\/plain/);
+    expect(await url.text()).toBe("https://example.trycloudflare.com");
 
     for (const path of ["/src/game.ts", "/public/", "/public/missing.js", "/package.json"]) {
       const res = await fetch(base + path);

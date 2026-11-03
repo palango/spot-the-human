@@ -210,7 +210,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   }
 
   const server = createServer((req, res) => {
-    serveHttp(req, res, qrSvg).catch(() => {
+    serveHttp(req, res, qrSvg, opts.publicUrl).catch(() => {
       if (!res.headersSent) res.writeHead(500);
       res.end();
     });
@@ -285,10 +285,11 @@ function isLetter(value: unknown): value is Letter {
 }
 
 /** GET only: the two pages, the QR code, and files inside public/. Everything else is 404. */
-async function serveHttp(req: IncomingMessage, res: ServerResponse, qrSvg: string): Promise<void> {
+async function serveHttp(req: IncomingMessage, res: ServerResponse, qrSvg: string, publicUrl: string): Promise<void> {
   if (req.method !== "GET" && req.method !== "HEAD") return notFound(res);
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
   if (path === "/qr.svg") return reply(res, CONTENT_TYPES[".svg"]!, qrSvg);
+  if (path === "/public-url") return reply(res, CONTENT_TYPES[".txt"]!, publicUrl);
   const page = PAGES[path];
   if (page) return serveFile(res, resolve(PUBLIC_DIR, page));
   if (path.startsWith("/public/")) {
