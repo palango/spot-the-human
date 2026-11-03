@@ -55,17 +55,18 @@ A round is three prompts and then a vote. A game is three rounds.
 For each prompt:
 
 1. The screen and every phone show the prompt and a visible 45-second countdown.
-2. **Everyone types an answer**, voters included, so all thumbs move at the same time. Voters' answers are cover only and never appear on screen.
+2. **Everyone types an answer**, voters and removed players included, so all thumbs move at the same time. Only answers from hidden humans still in the game reach the screen; everyone else's are cover only.
 3. When the timer runs out, each phone sends whatever has been typed, even half a sentence. An empty answer shows as "…". People can also press Send early, but nothing appears on screen until the timer ends.
-4. The screen shows all six players' answers at once. The room reads and talks. Paul presses Next when they're done (no timer on the discussion; my call).
+4. The screen shows the answers of every player still in, all at once. Removed players are greyed out and show no answer. The room reads and talks. Paul presses Next when they're done (no timer on the discussion; my call).
 
 After the third prompt, the vote:
 
-1. Every phone shows buttons for the players still in, with a visible 45-second countdown. Each person has one vote and can change it until the vote closes. Hidden humans vote too, so their phones look the same (my call).
+1. Every phone shows buttons for the players still in, a one-line reason field, and a visible 60-second countdown (longer than the answer window because people both pick and write; my call). Each person has one vote and can change it until the vote closes.
 2. The screen shows how many people have voted ("9 of 12 voted") but not who they voted for.
-3. At the same time, each agent posts its vote and a one-line reason on screen.
-4. When the vote closes, the player with the most room votes is removed and the screen reveals whether they were a human or an agent. That reveal is the big moment and gets the full screen.
-5. If the top two tie, nobody is removed that round.
+3. **Every player still in posts a vote with a one-line reason** (Paul's decision). Agents write theirs; a hidden human's vote and reason from their phone become their player's post. Voters' reasons are cover only, so everyone types at once. A player can't vote for themselves.
+4. When the vote closes, the screen first shows all player posts at once ("Player B votes D: way too polished for a guy who claims he's stuck in traffic"), with the same lowercase and punctuation treatment as answers. If a player posts nothing, their post shows as "…".
+5. Then the player with the most room votes is removed, and the screen reveals whether they were a human or an agent. That reveal is the big moment and gets the full screen. A hidden human's vote counts once as a room vote, like everyone else's.
+6. If the top two tie, nobody is removed that round.
 
 If a hidden human is removed, their phone becomes an ordinary voter's phone.
 
@@ -76,16 +77,19 @@ If a hidden human is removed, their phone becomes an ordinary voter's phone.
 
 ### Playing again
 
-A session can hold more than one game (Paul's decision), since a game with one human can end about 7 minutes in. When Paul presses New game, every phone goes back to the lobby with its identity kept, nobody has to rescan, and the server deals new roles and shuffles the letters again. Prompts played in an earlier game of the same session are not reused, so the prompt list needs at least 30 entries (three games of nine, plus spares for Skip). Joining reopens in the lobby between games, so newcomers can join.
+A session can hold more than one game (Paul's decision), since a game with one human can end about 7 minutes in. When Paul presses New game, every phone goes back to the lobby with its identity kept, so nobody has to rescan. Each phone taps "I'm in" to play the next game, and only those phones can be picked as humans; the roster freezes at Start. Start refuses to begin if fewer phones are in than the number of humans chosen. The server deals new roles and shuffles the letters again. Joining reopens in the lobby between games, so newcomers can join.
 
-### Agent votes (decision open)
+Prompts played earlier in the session are not reused. The list has 40 prompts. Start refuses if fewer than nine unused prompts remain, and Skip is disabled when skipping would leave too few to finish the game. The host screen shows how many unused prompts are left.
 
-Paul will decide later whether agents' votes count toward who is removed. Until then, only the room's votes remove a player and the agents' votes are commentary. Keep the two counts separate so switching to "both count" is a small change.
+### Player votes
+
+Player posts are commentary: only the room's votes remove a player. Agents are not in the room count. Keep player votes and room votes as separate tallies.
 
 ## Keeping it fair (anti-goal 2)
 
 - Every answer, human or agent, gets the same treatment before it reaches the screen: lowercased, punctuation stripped, cut to 120 characters. Style alone must not give anyone away.
-- Answers appear together at the end of the timer, so speed gives nothing away.
+- Answers and player vote posts appear together at the end of their timer, so speed gives nothing away.
+- Individual agent activity is never shown on its own (no "agent C is thinking", no early posts), since anything only agents do would identify them.
 - Agents are told to write like a person typing fast on a phone: short, casual, sometimes off topic or a little wrong. No polished paragraphs, no lists, no "As an AI". Each agent gets a short personality on top of the shared base prompt so the four don't sound alike.
 - Agents are told that one or more of the players are humans pretending to be agents, and that they should find them. Each agent sees every prompt and every player's answers so far, so it can reason when voting.
 - The prompt list is chosen so a human can't win just by being plainly human. Paul reviews it before the session.
@@ -96,8 +100,15 @@ Paul will decide later whether agents' votes count toward who is removed. Until 
 - If a phone loses that storage (a QR scanner's in-app browser, private mode, switching browsers), the person can get back in with a short rejoin code shown on their role card. The "game in progress" page has a field for it. The briefing should also ask everyone to scan with the phone's own camera app. (My call.)
 - The server holds the authoritative state and timers. Phones only display the time the server says is left.
 - Typed text is saved as a draft on the server while the person types, so the timer-end submit works even if the phone's connection drops in the last second.
-- If an agent's API call fails, retry once; if it still fails, that agent's answer is "…" (the same as a human who typed nothing). A failed agent vote is left out.
-- Before the session, run a test game with a dozen simulated phones to find failures before the room does.
+- Agent calls start the moment a prompt or vote opens and run concurrently. Each has a time budget that ends a few seconds before the deadline, covering the first try and one retry. Anything not back by the deadline shows as "…" (the same as a human who typed nothing), and late results are thrown away.
+- The server owns every phase change and every deadline. At a deadline it freezes the latest saved draft or vote. Every message and every agent call is tagged with the game, prompt and vote it belongs to, and the server drops anything tagged with a phase that has closed (including after Skip, New game or +15 seconds).
+- Before the session: automated tests of the game rules (rounds, ties, removals, end conditions, replay, prompt supply), a WebSocket test with a dozen simulated phones including dropped connections and late messages, and one rehearsal on real phones through the tunnel. Phone locking, background tabs and the hold-to-see card can only be checked on real phones.
+
+## Privacy and the host
+
+- The server checks the host key on every host command and rejects any that lack it. The key never appears in the QR code or on the screen.
+- Each phone receives only the shared game state plus its own role, letter and rejoin code, never anyone else's. Agents receive only what the screen shows.
+- Rejoin codes are random and hard to guess (for example six characters), and the server limits wrong attempts.
 
 ## Host controls
 
@@ -121,7 +132,7 @@ Paul runs the game from the screen page on the laptop. The host controls appear 
 
 ## First draft of the prompts (for Paul to edit)
 
-Nine are needed per game and at least 30 per session. The builder extends this list to 30; Paul edits it.
+Nine are needed per game. The builder extends this list to 40; Paul edits it.
 
 - What's 17 × 23?
 - Describe the worst part of your commute today.
