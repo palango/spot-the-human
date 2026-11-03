@@ -76,6 +76,8 @@ export class Session {
   private readonly random: () => number;
   private readonly onChange: () => void;
   private readonly durations: Durations;
+  // Never reset, so a phaseId from an earlier game or before a reset can never match again.
+  private lastPhaseId = 0;
 
   constructor(opts: SessionOptions) {
     this.brain = opts.brain;
@@ -124,6 +126,7 @@ export class Session {
       durations: this.durations,
       roster: ready,
       humanPhoneIds: shuffle(ready, this.random).slice(0, humanCount),
+      nextPhaseId: () => ++this.lastPhaseId,
     });
     this.game.begin();
     return { ok: true };
@@ -164,6 +167,8 @@ export interface GameOptions {
   durations: Durations;
   roster: string[];
   humanPhoneIds: string[];
+  /** Hands out phaseIds that are unique for the whole session. */
+  nextPhaseId: () => number;
 }
 
 /** One game: three rounds of three prompts and a vote. Owns every phase change and deadline. */
@@ -186,6 +191,7 @@ export class Game {
   private readonly pool: PromptPool;
   private readonly onChange: () => void;
   private readonly durations: Durations;
+  private readonly nextPhaseId: () => number;
   private readonly drafts = new Map<string, string>();
   private readonly votes = new Map<string, RoomVote>();
   private readonly agentAnswers = new Map<Letter, string>();
@@ -197,6 +203,7 @@ export class Game {
     this.pool = opts.pool;
     this.onChange = opts.onChange;
     this.durations = opts.durations;
+    this.nextPhaseId = opts.nextPhaseId;
     this.roster = new Set(opts.roster);
 
     const humanLetters = shuffle(LETTERS, opts.random);
@@ -309,7 +316,7 @@ export class Game {
 
   private enterPhase(name: PhaseName, durationMs: number | null): void {
     this.clearTimer();
-    this.phaseId += 1;
+    this.phaseId = this.nextPhaseId();
     this.phase = name;
     this.deadline = durationMs === null ? null : Date.now() + durationMs;
     if (name === "answering" || name === "voting") {

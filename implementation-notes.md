@@ -21,3 +21,4 @@ Records deviations from the plan.
 - Drafts do not call `onChange` (nothing shared changes); room votes do, because `votedCount` changes. Agent results never call `onChange`.
 - Drafts and room votes are cleared when answering or voting opens. Posts and removal are cleared when voting opens.
 - `extend()` keeps the `phaseId`: the phase stays open, so in-flight drafts and agent calls still count.
+- phaseIds come from a counter on `Session` that never resets (not on New game, not on Reset), so a message tagged for an earlier game can't match a phase in a later one.

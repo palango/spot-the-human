@@ -572,6 +572,33 @@ describe("end and replay", () => {
     expect(new Set([...firstPrompts, ...secondPrompts]).size).toBe(18);
   });
 
+  it("drafts and votes tagged with an earlier game's phaseId are ignored", async () => {
+    const { session, phones } = startGame(2);
+    const first = session.game!;
+    const firstAnswering = first.phaseId;
+    await playToVoting(first);
+    const firstVoting = first.phaseId;
+
+    session.newGame();
+    for (const p of phones) session.setReady(p.id, true);
+    expect(session.start(2)).toEqual({ ok: true });
+    const second = session.game!;
+    expect(second.phaseId).toBeGreaterThan(firstVoting);
+    const human = second.players.find((p) => p.kind === "human")!;
+    second.draft(human.phoneId!, firstAnswering, "stale draft");
+    expect(second.draftOf(human.phoneId!)).toBe("");
+    await playToVoting(second);
+    second.vote(phones[0]!.id, firstVoting, human.letter, "stale vote");
+    expect(second.votedCount()).toBe(0);
+
+    session.reset();
+    const phone = session.addPhone();
+    expect(session.start(1)).toEqual({ ok: true });
+    expect(session.game!.phaseId).toBeGreaterThan(second.phaseId);
+    session.game!.draft(phone.id, firstAnswering, "stale after reset");
+    expect(session.game!.draftOf(phone.id)).toBe("");
+  });
+
   it("newGame mid-game stops the old game's timers", async () => {
     const { session, onChange } = startGame(2);
     const old = session.game!;
