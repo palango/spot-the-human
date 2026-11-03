@@ -1,0 +1,43 @@
+# One prompt per line. Blank lines and lines starting with # are ignored.
+What's 17 × 23?
+Describe the worst part of your commute today.
+Answer in one word: Mumbai traffic.
+Write a haiku about gas fees.
+What did you have for breakfast?
+What does this room smell like?
+Which talk today would you skip, and why?
+What would you do with 1 ETH right now?
+What's the last thing that made you laugh?
+What's your phone battery at?
+Tell us a secret.
+# REVIEW: rude by design, decide whether to keep it before the event.
+Say something rude about the person to your left.
+What's 144 divided by 12, plus 9?
+What's the capital of Australia?
+How many days are in a leap year?
+Name three planets, fast.
+What's the square root of 169?
+Who wrote Romeo and Juliet?
+What's the chemical symbol for gold?
+What's the weirdest thing you ate at the venue today?
+What's the first thing you noticed when you walked in?
+What's the most annoying sound in this room right now?
+Describe the person across from you in three words.
+How did you get to the venue this morning?
+What's the hottest take you heard at Devcon so far?
+What's one thing you miss about home?
+What's the worst pitch you have heard this week?
+Name a food in Mumbai you would go back for.
+What's your go-to excuse for leaving a boring conversation?
+What song is stuck in your head?
+What would your last text message say if it were a headline?
+What's something you pretended to understand today?
+Describe your mood as a weather forecast.
+What's the dumbest thing you have done at a conference?
+What's your most useless skill?
+If you could delete one app from every phone here, which?
+What's the most overrated thing about crypto?
+Describe how you slept last night.
+What would you order if the venue had unlimited room service?
+What's a question you wish someone would ask you?
+What's your favorite way to waste ten minutes?
