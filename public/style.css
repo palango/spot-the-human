@@ -137,7 +137,7 @@ body.phone .vote-grid button[aria-pressed="true"] {
 body.phone .role-wrap { padding-top: 8px; }
 
 body.phone .role-card {
-  height: 220px;
+  height: 260px;
   padding: 16px;
   border: 3px dashed var(--line);
   border-radius: 18px;
@@ -154,5 +154,5 @@ body.phone .role-card {
 }
 
 body.phone .role-label { color: var(--muted); font-weight: 700; }
-body.phone .role-text { font-size: 24px; line-height: 1.25; font-weight: 700; }
+body.phone .role-text { font-size: 22px; line-height: 1.25; font-weight: 700; }
 body.phone .role-code { font-size: 22px; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; }

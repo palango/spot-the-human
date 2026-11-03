@@ -60,9 +60,16 @@
   var voteTarget = null;
   var draftTimer = null;
   var voteTimer = null;
+  var draftPhaseId = null; // phase the pending debounced draft or vote was typed in
+  var votePhaseId = null;
+  var resync = false; // after a reconnect, re-send what the fields hold
+  var LATE_MS = 1500; // inside this window before the deadline, send without debouncing
 
+  // Returns true only when the message went out on an open socket.
   function send(msg) {
-    if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(msg));
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    socket.send(JSON.stringify(msg));
+    return true;
   }
 
   function connect() {
@@ -72,6 +79,7 @@
     ws.onopen = function () {
       if (socket !== ws) return;
       backoff = BACKOFF_MIN_MS;
+      resync = true;
       var id = storage.get();
       send(id ? { t: "hello-phone", phoneId: id } : { t: "hello-phone" });
     };
@@ -98,12 +106,39 @@
       storage.set(msg.phoneId);
     } else if (msg.t === "view" && msg.view) {
       els.conn.hidden = true;
+      flushEndedPhase(msg.view);
       view = msg.view;
       deadlineAt = typeof view.remainingMs === "number" ? Date.now() + view.remainingMs : null;
       render();
+      resendAfterReconnect();
     } else if (msg.t === "error" && msg.reason === "bad-code") {
       els.rejoinError.hidden = false;
     }
+  }
+
+  // A debounced edit still waiting when the phase moves on goes out tagged with its own
+  // phaseId; the server takes it only if that phase is still open.
+  function flushEndedPhase(next) {
+    if (draftTimer !== null && draftPhaseId !== next.phaseId) {
+      clearTimeout(draftTimer);
+      draftTimer = null;
+      send({ t: "draft", phaseId: draftPhaseId, text: els.answerText.value });
+    }
+    if (voteTimer !== null && votePhaseId !== next.phaseId) {
+      clearTimeout(voteTimer);
+      voteTimer = null;
+      send({ t: "vote", phaseId: votePhaseId, target: voteTarget, reason: els.voteReason.value });
+    }
+  }
+
+  // The first view after a reconnect: if the fields belong to this same phase, they may hold
+  // edits the server never got, so send them again.
+  function resendAfterReconnect() {
+    if (!resync) return;
+    resync = false;
+    if (!view || filledPhaseId !== view.phaseId) return;
+    if (view.phase === "answering") sendDraft();
+    else if (view.phase === "voting" && voteTarget) sendVote();
   }
 
   function show(section) {
@@ -195,35 +230,40 @@
 
   // Drafts and votes
 
+  function isLate() {
+    return deadlineAt !== null && deadlineAt - Date.now() < LATE_MS;
+  }
+
   function sendDraft() {
     clearTimeout(draftTimer);
     draftTimer = null;
-    if (view && view.phase === "answering") {
-      send({ t: "draft", phaseId: view.phaseId, text: els.answerText.value });
-    }
+    if (!view || view.phase !== "answering") return false;
+    return send({ t: "draft", phaseId: view.phaseId, text: els.answerText.value });
   }
 
   els.answerText.addEventListener("input", function () {
     els.answerSent.hidden = true;
     clearTimeout(draftTimer);
+    if (isLate()) { sendDraft(); return; }
+    draftPhaseId = view ? view.phaseId : null;
     draftTimer = setTimeout(sendDraft, ANSWER_DEBOUNCE_MS);
   });
 
   els.answerSend.addEventListener("click", function () {
-    sendDraft();
-    els.answerSent.hidden = false;
+    els.answerSent.hidden = !sendDraft();
   });
 
   function sendVote() {
     clearTimeout(voteTimer);
     voteTimer = null;
-    if (view && view.phase === "voting") {
-      send({ t: "vote", phaseId: view.phaseId, target: voteTarget, reason: els.voteReason.value });
-    }
+    if (!view || view.phase !== "voting") return false;
+    return send({ t: "vote", phaseId: view.phaseId, target: voteTarget, reason: els.voteReason.value });
   }
 
   els.voteReason.addEventListener("input", function () {
     clearTimeout(voteTimer);
+    if (isLate()) { sendVote(); return; }
+    votePhaseId = view ? view.phaseId : null;
     voteTimer = setTimeout(sendVote, ANSWER_DEBOUNCE_MS);
   });
 
@@ -249,7 +289,7 @@
     if (!you || !you.inRoster) return;
     els.roleText.textContent = you.role === "human"
       ? "You're a hidden human. You are Player " + you.letter + ". Make them think you're an agent."
-      : "You're a voter. Find the humans.";
+      : "You're a voter. Watch the six players and find the humans hiding among them.";
     els.roleCode.textContent = "Rejoin code: " + you.rejoinCode;
   }
 
