@@ -143,7 +143,7 @@ export class Session {
     return { ok: true };
   }
 
-  /** Back to the lobby; phones keep their identity but must tap "I'm in" again. No-op in the lobby. */
+  /** Back to the lobby; phones keep their identity but must tap in again ("Tap to join the next game"). No-op in the lobby. */
   newGame(): void {
     if (!this.game) return;
     this.game.dispose();
