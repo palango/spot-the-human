@@ -22,3 +22,13 @@ Records deviations from the plan.
 - Drafts and room votes are cleared when answering or voting opens. Posts and removal are cleared when voting opens.
 - `extend()` keeps the `phaseId`: the phase stays open, so in-flight drafts and agent calls still count.
 - phaseIds come from a counter on `Session` that never resets (not on New game, not on Reset), so a message tagged for an earlier game can't match a phase in a later one.
+
+## Task 4
+
+- The SDK types (`@anthropic-ai/sdk@0.115.0`) accept the brief's call shape as written: `fallbacks: "default"`, `betas: ["server-side-fallback-2026-07-01"]` and `output_config: { effort: "low" }` all typecheck. No change.
+- Retry rule: any `Anthropic.APIError` (which includes `APIConnectionTimeoutError`) gets one retry with what is left of the budget. Any other error (for example the SDK's "Could not resolve authentication method" when no credentials exist, which is a plain `Error`) returns `""` at once, since a retry can't fix it.
+- Only `stop_reason === "refusal"` returns `""` outright. Any other stop reason (including `max_tokens`) uses whatever text came back; an empty result is logged with its stop reason.
+- `answer` and `vote` wrap everything in try/catch, so they resolve to a string and a `{ target, reason: string }` even if building the message throws.
+- The brief's history test expects `"what's 17 × 23"`; the fixture's prompt is written in lowercase so the assertion stays verbatim. Real prompts keep their case in the message, as the screen shows them.
+- `parseVote` accepts `VOTE: player C` and, without a `REASON:` label, keeps the rest of the text as the reason. A word that only starts with a letter (`VOTE: abstain`) is not read as a vote.
+- Failures are logged to stderr (`agent call failed (attempt n): ...`) so a rate limit or outage shows on the laptop during the session. The log never includes the key.
