@@ -22,6 +22,8 @@ describe("PromptPool", () => {
     const p = new PromptPool(Array.from({ length: 10 }, (_, i) => `q${i}`));
     expect(p.canSkip(9)).toBe(true);
     p.take();
+    expect(p.canSkip(9)).toBe(true);
+    p.take();
     expect(p.canSkip(9)).toBe(false);
   });
 
