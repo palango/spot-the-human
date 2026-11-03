@@ -3,9 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>Spot the Human: screen</title>
+  <link rel="stylesheet" href="/public/style.css">
 </head>
-<body>
-  <p>Loading…</p>
+<body class="screen">
+  <div id="conn" class="conn">Connecting…</div>
+
+  <section id="s-lobby" class="stage" hidden>
+    <h1>Spot the Human</h1>
+    <div class="lobby-body">
+      <img id="qr" src="/qr.svg" alt="QR code to join">
+      <div class="lobby-text">
+        <p id="join-url" class="join-url" hidden></p>
+        <p id="ready-line" class="ready-line"></p>
+        <p class="note">One or two of these players are human.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="s-game" class="stage" hidden>
+    <header class="topline">
+      <p id="progress"></p>
+      <p id="timer" class="timer"></p>
+    </header>
+    <div id="tiles" class="tiles"></div>
+    <div id="detail" class="detail"></div>
+  </section>
+
+  <section id="s-removal" class="removal" hidden>
+    <p id="removal-main" class="removal-main"></p>
+    <p id="removal-tally" class="removal-tally"></p>
+  </section>
+
+  <footer id="host-bar" class="host-bar" hidden>
+    <div class="humans" role="group" aria-label="Number of humans">
+      <button type="button" id="h1" aria-pressed="false">1 human</button>
+      <button type="button" id="h2" aria-pressed="true">2 humans</button>
+    </div>
+    <button type="button" id="b-start">Start</button>
+    <button type="button" id="b-next">Next</button>
+    <button type="button" id="b-extend">+15 s</button>
+    <button type="button" id="b-close">Close vote</button>
+    <button type="button" id="b-skip">Skip</button>
+    <button type="button" id="b-new">New game</button>
+    <button type="button" id="b-reset">Reset</button>
+    <span id="prompts-left" class="host-info"></span>
+    <span id="host-error" class="host-error"></span>
+  </footer>
+
+  <script src="/public/screen.js"></script>
 </body>
 </html>
