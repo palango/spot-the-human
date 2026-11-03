@@ -294,6 +294,6 @@ body.screen .host-bar button:disabled { opacity: 0.3; cursor: default; }
 body.screen .host-bar .humans { display: flex; gap: 4px; }
 body.screen .host-bar .humans button { background: transparent; color: var(--text); border-color: var(--line); }
 body.screen .host-bar .humans button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-body.screen .host-bar #b-reset.armed { background: var(--danger); border-color: var(--danger); }
+body.screen .host-bar button.armed { background: var(--danger); border-color: var(--danger); }
 body.screen .host-info { color: var(--muted); margin-left: auto; }
 body.screen .host-error { color: var(--danger); font-weight: 700; }

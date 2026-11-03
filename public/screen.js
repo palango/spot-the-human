@@ -3,7 +3,11 @@
 
   var BACKOFF_MIN_MS = 500;
   var BACKOFF_MAX_MS = 5000;
-  var RESET_CONFIRM_MS = 3000;
+  // A destructive button needs a second click between these two times after the first, so a double click can't
+  // confirm itself and a stray click long after doesn't either.
+  var CONFIRM_MIN_MS = 600;
+  var CONFIRM_MAX_MS = 3000;
+  var HOST_KEY_STORAGE = "spotTheHuman.hostKey";
   var ERROR_SHOW_MS = 6000;
 
   var ERROR_TEXT = {
@@ -42,8 +46,14 @@
     hostError: $("host-error")
   };
 
-  // The host key lives in memory only; take it out of the address bar so a mirrored screen never shows it.
+  // Take the host key out of the address bar so a mirrored screen never shows it. sessionStorage keeps it for
+  // this tab only, so a reload still has the host bar.
   var hostKey = new URLSearchParams(location.search).get("host");
+  if (hostKey) {
+    try { sessionStorage.setItem(HOST_KEY_STORAGE, hostKey); } catch (e) { /* storage blocked: memory only */ }
+  } else {
+    try { hostKey = sessionStorage.getItem(HOST_KEY_STORAGE); } catch (e) { hostKey = null; }
+  }
   if (location.search) {
     try { history.replaceState(null, "", location.pathname); } catch (e) { /* not fatal */ }
   }
@@ -55,7 +65,6 @@
   var view = null;
   var deadlineAt = null; // local clock time at which the phase ends
   var humans = 2;
-  var resetArmedUntil = 0;
   var errorTimer = null;
 
   function send(msg) {
@@ -207,6 +216,7 @@
     els.close.disabled = p !== "voting";
     els.skip.disabled = !(p === "answering" && v.canSkip);
     els.newGame.disabled = p === "lobby";
+    if (p === "lobby") newGameConfirm.disarm();
     els.promptsLeft.textContent = v.promptsLeft + " prompts left";
   }
 
@@ -232,27 +242,46 @@
   els.extend.addEventListener("click", function () { phaseCommand("extend"); });
   els.close.addEventListener("click", function () { phaseCommand("closeVote"); });
   els.skip.addEventListener("click", function () { phaseCommand("skip"); });
-  els.newGame.addEventListener("click", function () { command({ cmd: "newGame" }); });
 
-  // Reset wipes every phone: ask for a second click within 3 s instead of confirm().
-  els.reset.addEventListener("click", function () {
-    if (Date.now() < resetArmedUntil) {
-      resetArmedUntil = 0;
-      disarmReset();
-      command({ cmd: "reset" });
-      return;
+  // Arm on the first click (red, armedLabel); run on a click CONFIRM_MIN_MS to CONFIRM_MAX_MS later.
+  // A click sooner than that is the second half of a double click and is ignored. confirm() is not used.
+  function confirmButton(button, armedLabel, run) {
+    var label = button.textContent;
+    var armedAt = null;
+    var timer = null;
+    function disarm() {
+      clearTimeout(timer);
+      timer = null;
+      armedAt = null;
+      button.textContent = label;
+      button.classList.remove("armed");
     }
-    resetArmedUntil = Date.now() + RESET_CONFIRM_MS;
-    els.reset.textContent = "Click again to reset";
-    els.reset.classList.add("armed");
-    setTimeout(disarmReset, RESET_CONFIRM_MS);
+    function click(needsConfirm) {
+      var since = armedAt === null ? null : Date.now() - armedAt;
+      if (!needsConfirm || (since !== null && since >= CONFIRM_MIN_MS && since <= CONFIRM_MAX_MS)) {
+        disarm();
+        run();
+        return;
+      }
+      if (since !== null && since < CONFIRM_MIN_MS) return;
+      armedAt = Date.now();
+      button.textContent = armedLabel;
+      button.classList.add("armed");
+      clearTimeout(timer);
+      timer = setTimeout(disarm, CONFIRM_MAX_MS);
+    }
+    return { click: click, disarm: disarm };
+  }
+
+  // New game ends a running game for everyone, so it needs a confirm unless the game is already over.
+  var newGameConfirm = confirmButton(els.newGame, "Click again to end the game", function () { command({ cmd: "newGame" }); });
+  els.newGame.addEventListener("click", function () {
+    newGameConfirm.click(!!view && view.phase !== "ended" && view.phase !== "lobby");
   });
 
-  function disarmReset() {
-    if (Date.now() < resetArmedUntil) return; // armed again since this timer was set
-    els.reset.textContent = "Reset";
-    els.reset.classList.remove("armed");
-  }
+  // Reset wipes every phone, so it always needs a confirm.
+  var resetConfirm = confirmButton(els.reset, "Click again to reset", function () { command({ cmd: "reset" }); });
+  els.reset.addEventListener("click", function () { resetConfirm.click(true); });
 
   connect();
 })();
