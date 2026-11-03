@@ -29,6 +29,7 @@ Paul named these three:
 
 - The twists from the original notes (reverse round, AI-assisted human, Hinglish round). Not before Devcon.
 - Anything shared with the Sleeper Agent game. Build only what this session needs.
+- Moderation of answers, and any notice about Bonfires recording the hub (Paul's decision).
 - Accounts, sign-up, names, persistence across server restarts, more than one game running at a time.
 - Hosting anywhere other than Paul's laptop.
 
@@ -36,7 +37,7 @@ Paul named these three:
 
 ### Joining and briefing
 
-- People scan a QR code that opens the phone page. There is no sign-up or name. The page shows a waiting screen and a notice that what they type may be published (Bonfires captures and republishes everything in the hub).
+- People scan a QR code that opens the phone page. There is no sign-up or name. The page shows a waiting screen.
 - Paul briefs the whole room at once, then presses Start. Joining closes at Start; anyone who opens the page later sees "game in progress".
 - At Start the server picks the hidden humans at random from the joined phones. Paul chooses one or two humans when he presses Start (my call; default two). The six player letters A to F are shuffled, so a human could be any letter.
 - The exact number of humans stays secret (Paul's decision). The screen says "one or two of these players are human", and the agents are told the same. After the first human is revealed, the room still doesn't know whether the hunt is over.
@@ -133,7 +134,7 @@ Nine are needed per game and at least 30 per session. The builder extends this l
 - What's the last thing that made you laugh?
 - What's your phone battery at?
 - Tell us a secret.
-- Say something rude about the person to your left. (Risky in a small room whose content gets published; keep or drop.)
+- Say something rude about the person to your left. (Risky in a small room with no way to hide an answer; keep or drop.)
 
 ## Left to the builder
 
