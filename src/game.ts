@@ -91,6 +91,11 @@ export class Session {
     return this.game?.phase ?? "lobby";
   }
 
+  /** Prompts not yet used this session. */
+  get promptsLeft(): number {
+    return this.pool.remaining;
+  }
+
   /** Phones that join in the lobby are in the next game; phones that join mid-game wait for the next lobby. */
   addPhone(): PhoneRecord {
     const phone: PhoneRecord = { id: randomUUID(), rejoinCode: this.newRejoinCode(), ready: this.phase === "lobby" };

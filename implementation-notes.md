@@ -32,3 +32,12 @@ Records deviations from the plan.
 - The brief's history test expects `"what's 17 × 23"`; the fixture's prompt is written in lowercase so the assertion stays verbatim. Real prompts keep their case in the message, as the screen shows them.
 - `parseVote` accepts `VOTE: player C` and, without a `REASON:` label, keeps the rest of the text as the reason. A word that only starts with a letter (`VOTE: abstain`) is not read as a vote.
 - Failures are logged to stderr (`agent call failed (attempt n): ...`) so a rate limit or outage shows on the laptop during the session. The log never includes the key.
+
+## Task 5
+
+- In the lobby (`Session.game` is null) both views report phase "lobby" with an empty `players` list, `phaseId` 0, and `rosterCount` equal to `readyCount` (ready phones).
+- In phase "ended" `revealedKind` is set for every player, on screen and phones. Before that, only out players have it.
+- Added `Session.promptsLeft` (read-only, the pool's `remaining`) for the `promptsLeft` field.
+- `answers` is present only in "revealed", `posts` only in "votePosts" and "removal", `removal` (with `tally`) only in "removal".
+- `you.role` is `null` for a phone outside the roster (joined mid-game), `"voter"` for roster phones that are not a player in, `"human"` only while the human is in. `draft` and `vote` are empty for phones outside the roster.
+- The repo has no Prettier config; `src/views.ts` follows the style of `src/game.ts` and is not run through Prettier.
