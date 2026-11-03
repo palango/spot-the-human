@@ -224,10 +224,14 @@
   els.h1.addEventListener("click", function () { setHumans(1); });
   els.h2.addEventListener("click", function () { setHumans(2); });
   els.start.addEventListener("click", function () { command({ cmd: "start", humans: humans }); });
-  els.next.addEventListener("click", function () { command({ cmd: "next" }); });
-  els.extend.addEventListener("click", function () { command({ cmd: "extend" }); });
-  els.close.addEventListener("click", function () { command({ cmd: "closeVote" }); });
-  els.skip.addEventListener("click", function () { command({ cmd: "skip" }); });
+  // These carry the phase on screen, so a double click acts once: the server drops the second for a closed phase.
+  function phaseCommand(cmd) {
+    if (view) command({ cmd: cmd, phaseId: view.phaseId });
+  }
+  els.next.addEventListener("click", function () { phaseCommand("next"); });
+  els.extend.addEventListener("click", function () { phaseCommand("extend"); });
+  els.close.addEventListener("click", function () { phaseCommand("closeVote"); });
+  els.skip.addEventListener("click", function () { phaseCommand("skip"); });
   els.newGame.addEventListener("click", function () { command({ cmd: "newGame" }); });
 
   // Reset wipes every phone: ask for a second click within 3 s instead of confirm().

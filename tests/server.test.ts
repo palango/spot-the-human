@@ -35,8 +35,8 @@ class Client {
     this.closed = new Promise((resolve) => ws.on("close", (code) => resolve(code)));
   }
 
-  static open(port: number): Promise<Client> {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`);
+  static open(port: number, options?: WebSocket.ClientOptions): Promise<Client> {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws`, options);
     const client = new Client(ws);
     return new Promise((resolve, reject) => {
       ws.once("open", () => resolve(client));
@@ -99,7 +99,7 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => s.close()));
 });
 
-async function setup(durations: Partial<Durations> = {}) {
+async function setup(durations: Partial<Durations> = {}, heartbeatMs?: number) {
   const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
   const server = await startServer({
     port: 0,
@@ -108,10 +108,11 @@ async function setup(durations: Partial<Durations> = {}) {
     brain: new ScriptedBrain(),
     pool,
     durations: { answerMs: 300, voteMs: 300, extendMs: 300, agentMarginMs: 50, ...durations },
+    heartbeatMs,
   });
   servers.push(server);
-  const connect = async () => {
-    const client = await Client.open(server.port);
+  const connect = async (options?: WebSocket.ClientOptions) => {
+    const client = await Client.open(server.port, options);
     open.push(client);
     return client;
   };
@@ -163,7 +164,7 @@ describe("server", () => {
       if (msg.t !== "view" || view.phaseId === handled) return;
       if (view.phase === "revealed" || view.phase === "votePosts" || view.phase === "removal") {
         handled = view.phaseId;
-        host.send({ t: "host", cmd: "next" });
+        host.send({ t: "host", cmd: "next", phaseId: view.phaseId });
       }
     });
 
@@ -353,6 +354,56 @@ describe("server", () => {
     expect((await host.view<ScreenView>((v) => v.readyCount > 0)).readyCount).toBe(1);
   });
 
+  it("ignores phase commands with a stale or missing phaseId", async () => {
+    const { phone, screen } = await setup({ answerMs: 200 });
+    await phone();
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
+
+    for (const cmd of ["next", "skip", "closeVote", "extend"]) {
+      host.send({ t: "host", cmd });
+      host.send({ t: "host", cmd, phaseId: revealed.phaseId - 1 });
+      host.send({ t: "host", cmd, phaseId: String(revealed.phaseId) });
+    }
+    expect(await settle(host)).toMatchObject({ phase: "revealed", phaseId: revealed.phaseId });
+
+    host.send({ t: "host", cmd: "next", phaseId: revealed.phaseId });
+    expect(await settle(host)).toMatchObject({ phase: "answering", promptInRound: 2 });
+  });
+
+  it("a double Next on the vote posts shows the removal", async () => {
+    const { phone, screen } = await setup({ answerMs: 200, voteMs: 200 });
+    await phone();
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    for (let i = 0; i < 3; i++) {
+      const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
+      host.send({ t: "host", cmd: "next", phaseId: revealed.phaseId });
+    }
+    const posts = await host.view<ScreenView>((v) => v.phase === "votePosts");
+
+    host.send({ t: "host", cmd: "next", phaseId: posts.phaseId });
+    host.send({ t: "host", cmd: "next", phaseId: posts.phaseId });
+    expect(await settle(host)).toMatchObject({ phase: "removal", phaseId: posts.phaseId + 1 });
+  });
+
+  it("heartbeat terminates a socket that stops answering pings", async () => {
+    const { connect, phone, screen } = await setup({}, 100);
+    const live = await phone();
+    // ws clients answer pings by themselves; this one doesn't, like a phone whose network died.
+    const dead = await connect({ autoPong: false });
+    dead.send({ t: "hello-phone" });
+    await dead.view();
+    expect(await dead.closed).toBe(1006);
+
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 2 });
+    expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
+    // The live phone has kept answering pings over many intervals.
+    expect(live.client.ws.readyState).toBe(WebSocket.OPEN);
+  });
+
   it("rejects start on a busy port", async () => {
     const { server } = await setup();
     const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
@@ -395,6 +446,20 @@ describe("server", () => {
     }
   });
 });
+
+/**
+ * Waits until the server has handled every message sent so far and sent every view they caused, then returns the
+ * last view. Each Start in a game gets an error at once; views are broadcast on the next turn of the event loop,
+ * so by the second error every earlier view has arrived.
+ */
+async function settle(host: Client): Promise<ScreenView> {
+  for (let i = 0; i < 2; i++) {
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    await host.next((m) => m.t === "error" && m.reason === "not-in-lobby");
+  }
+  const views = host.received.filter((m) => m.t === "view");
+  return views[views.length - 1]!.view as ScreenView;
+}
 
 function rawGetStatus(port: number, path: string): Promise<number> {
   return new Promise((resolve, reject) => {

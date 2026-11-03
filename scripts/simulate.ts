@@ -192,13 +192,13 @@ async function playHost(host: WebSocket, stopAfterFirstReveal: boolean): Promise
     if (p === "revealed" && stopAfterFirstReveal) return;
     if (p === "revealed" || p === "votePosts" || p === "removal") {
       await sleep(HOST_PAUSE_MS);
-      cmd("next");
+      cmd("next", { phaseId: seen });
     } else if (p === "voting") {
       // Close early once every roster phone has voted; otherwise the deadline closes it.
       const id = seen;
       void (async () => {
         while (screenView?.phaseId === id && screenView.votedCount < screenView.rosterCount) await sleep(500);
-        if (screenView?.phaseId === id) cmd("closeVote");
+        if (screenView?.phaseId === id) cmd("closeVote", { phaseId: id });
       })();
     }
   }

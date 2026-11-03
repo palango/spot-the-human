@@ -18,6 +18,7 @@ export interface ServerOptions {
   brain: AgentBrain;
   pool: PromptPool;
   durations?: Durations; // tests only
+  heartbeatMs?: number; // tests only
 }
 
 export interface RunningServer {
@@ -42,6 +43,11 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 const PAGES: Record<string, string> = { "/": "phone.html", "/screen": "screen.html" };
 const HOST_COMMANDS = new Set(["start", "next", "extend", "closeVote", "skip", "newGame", "reset"]);
+// These act on the phase the host was looking at; a repeat click that arrives after the phase moved on is dropped.
+const PHASE_COMMANDS = new Set(["next", "extend", "closeVote", "skip"]);
+// A socket that has not answered the previous ping by the next one is dead (a phone that lost its network
+// keeps a half-open socket that still reads as OPEN), so it is terminated and stops counting as connected.
+const HEARTBEAT_MS = 10_000;
 
 /** One WebSocket. A phone socket is bound to one phoneId; later messages act for that phone only. */
 interface Client {
@@ -50,6 +56,7 @@ interface Client {
   screen: boolean;
   host: boolean;
   rejoinFails: number;
+  alive: boolean; // answered the last ping
 }
 
 // Client messages are untrusted JSON; handlers check each field they use.
@@ -158,6 +165,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     const game = session.game;
+    if (PHASE_COMMANDS.has(msg.cmd) && (game === null || msg.phaseId !== game.phaseId)) return;
     switch (msg.cmd) {
       case "start": {
         if (msg.humans !== 1 && msg.humans !== 2) return;
@@ -218,8 +226,11 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   // ws closes a socket with code 1009 when a message is over maxPayload.
   const wss = new WebSocketServer({ server, path: "/ws", maxPayload: MAX_MESSAGE_BYTES });
   wss.on("connection", (ws) => {
-    const client: Client = { ws, phoneId: null, screen: false, host: false, rejoinFails: 0 };
+    const client: Client = { ws, phoneId: null, screen: false, host: false, rejoinFails: 0, alive: true };
     clients.add(client);
+    ws.on("pong", () => {
+      client.alive = true;
+    });
     ws.on("message", (data, isBinary) => {
       if (isBinary) return;
       let msg: unknown;
@@ -263,6 +274,16 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const ticker = setInterval(() => {
     if (session.game?.deadline != null) broadcast();
   }, TICK_MS);
+  const heartbeat = setInterval(() => {
+    for (const client of clients) {
+      if (!client.alive) {
+        client.ws.terminate();
+        continue;
+      }
+      client.alive = false;
+      client.ws.ping();
+    }
+  }, opts.heartbeatMs ?? HEARTBEAT_MS);
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : opts.port;
 
@@ -270,6 +291,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     port,
     close: async () => {
       clearInterval(ticker);
+      clearInterval(heartbeat);
       if (broadcastPending) clearImmediate(broadcastPending);
       session.game?.dispose();
       for (const client of clients) client.ws.terminate();
