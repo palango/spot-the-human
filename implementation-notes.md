@@ -56,3 +56,19 @@ Records deviations from the plan.
 - `hello-phone` with no known id on a socket that already has a phone keeps that phone instead of adding one.
 - `wss` has an `error` listener: a listen error (such as EADDRINUSE) rejects `startServer`, and later server errors are logged. The ticker starts only after listening succeeds, so a failed start leaves no timer behind. `main.ts` prints a one-line message and exits 1 when the port is busy.
 - `main.ts` prints the host screen URL as `http://localhost:<port>/screen?host=<key>`, so the key never goes through the tunnel.
+
+## Task 7
+
+- Files: `public/phone.html`, `public/phone.js`, `public/style.css` (phone rules under `body.phone`; `:root` colours and the reset are shared for Task 8). No external fonts or scripts. Pages load `/public/style.css` and `/public/phone.js`.
+- The page fills the draft or the vote from the server only once per `phaseId`, so a reconnect restores it and later views never overwrite typing. The countdown runs on the local clock from each view's `remainingMs`.
+- The role text is written into the card only while pressed and cleared on release, blur or when the page is hidden. Pointer and touch events both fire the hold; the card is a fixed 220 px high for both roles.
+- On close code 4000 the page clears the stored phoneId and reconnects. A wrong rejoin code shows "That code did not work."
+- Out players (human voted out) get `role: "voter"` from the server, so the card shows the voter text for them. The vote buttons list only players still in.
+- Headless check (controller ruling 1). Server started with `PUBLIC_URL=http://localhost:3000 HOST_KEY=test npm start`, no API key. A throwaway driver (outside the repo) connected 5 fake phones and a host screen, started a game with 1 human, and stepped through all phases. Captured with headless Chrome and a fixed `--user-data-dir`, so the real page kept its phoneId and was a roster voter:
+  - `phone-lobby.png`: title, "I'm in" toggle (on), "1 ready". OK.
+  - `phone-answering.png`: prompt, 41 s countdown at 88 px, text area, Send, held-role box. OK.
+  - `phone-revealed.png`, `phone-ended.png`: "Look at the screen" plus the role box. OK.
+  - `phone-voting.png`: countdown, six "Player A..F" buttons, reason field, role box. OK.
+  - `phone-notin.png`: late joiner mid-game: "Game in progress, you can join the next one", rejoin field and button. OK.
+  - Headless Chrome will not make a window narrower than 500 px, so these are 500 px wide, not 390. A 390 px iframe check (`phone-voting-390.png`) lost its phoneId to storage partitioning and showed the not-in-game page instead; it does show that one at 390 without overflow. The vote grid at 390 px is not seen.
+- Not verified, still to do on real phones: typing and the 300 ms draft debounce; Send and the "Sent, you can still edit" line; draft and vote restored after a refresh mid-phase; hold-to-see (touch, long-press menu, release); lock and unlock the phone; vote selection and reason; layout at 390 px and with the keyboard open; "I'm in" toggle; rejoin code entry; reset (4000) handling; mobile Safari and Chrome through the tunnel.

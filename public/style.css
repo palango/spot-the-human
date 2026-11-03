@@ -1,0 +1,158 @@
+:root {
+  --bg: #12141a;
+  --panel: #1e222c;
+  --line: #3a4152;
+  --text: #f2f4f8;
+  --muted: #9aa3b5;
+  --accent: #ffc94d;
+  --accent-text: #1a1400;
+  --danger: #ff7a7a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Phone page */
+
+body.phone {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 16px);
+  font-size: 20px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body.phone main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+body.phone section { display: flex; flex-direction: column; gap: 16px; }
+body.phone [hidden] { display: none !important; }
+
+body.phone h1 { font-size: 32px; line-height: 1.15; margin: 0; text-align: center; }
+body.phone .big { font-size: 28px; text-align: center; }
+body.phone p { margin: 0; }
+body.phone .muted { color: var(--muted); text-align: center; }
+body.phone .error { color: var(--danger); }
+
+body.phone .conn {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 -16px;
+  padding: 8px 16px;
+  background: var(--danger);
+  color: #1a0000;
+  text-align: center;
+  font-weight: 600;
+}
+
+body.phone button,
+body.phone input,
+body.phone textarea {
+  font: inherit;
+  font-size: 20px; /* 16px or more stops iOS zooming on focus */
+  color: var(--text);
+  border-radius: 14px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  padding: 14px 16px;
+  width: 100%;
+}
+
+body.phone button {
+  min-height: 64px;
+  font-weight: 700;
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  touch-action: manipulation;
+}
+
+body.phone button:active { filter: brightness(0.9); }
+
+body.phone textarea { resize: none; min-height: 120px; }
+
+body.phone .toggle {
+  min-height: 88px;
+  font-size: 30px;
+  background: var(--panel);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+body.phone .toggle[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+body.phone .prompt { font-size: 28px; line-height: 1.25; text-align: center; font-weight: 600; }
+
+body.phone .timer {
+  font-size: 88px;
+  line-height: 1;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+body.phone label { color: var(--muted); }
+
+body.phone #rejoin-form { display: flex; flex-direction: column; gap: 12px; }
+body.phone #rejoin-code { text-transform: uppercase; letter-spacing: 0.2em; text-align: center; }
+
+body.phone .vote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+body.phone .vote-grid button {
+  min-height: 72px;
+  font-size: 24px;
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+body.phone .vote-grid button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+/* Held role card. Fixed size so both roles look the same from outside. */
+
+body.phone .role-wrap { padding-top: 8px; }
+
+body.phone .role-card {
+  height: 220px;
+  padding: 16px;
+  border: 3px dashed var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+body.phone .role-label { color: var(--muted); font-weight: 700; }
+body.phone .role-text { font-size: 24px; line-height: 1.25; font-weight: 700; }
+body.phone .role-code { font-size: 22px; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; }

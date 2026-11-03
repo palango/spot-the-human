@@ -2,10 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
   <title>Spot the Human</title>
+  <link rel="stylesheet" href="/public/style.css">
 </head>
-<body>
-  <p>Loading…</p>
+<body class="phone">
+  <div id="conn" class="conn" hidden>Reconnecting…</div>
+
+  <main>
+    <section id="s-loading"><p class="big">Connecting…</p></section>
+
+    <section id="s-lobby" hidden>
+      <h1>Waiting for the game to start</h1>
+      <button id="ready-toggle" class="toggle" type="button" aria-pressed="false">I'm in</button>
+      <p class="muted"><span id="ready-count">0</span> ready</p>
+    </section>
+
+    <section id="s-out" hidden>
+      <h1>Game in progress, you can join the next one</h1>
+      <form id="rejoin-form" autocomplete="off">
+        <label for="rejoin-code">Rejoining? Enter your code</label>
+        <input id="rejoin-code" type="text" maxlength="12" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
+        <button type="submit">Rejoin</button>
+        <p id="rejoin-error" class="error" hidden>That code did not work.</p>
+      </form>
+    </section>
+
+    <section id="s-answering" hidden>
+      <p id="answer-prompt" class="prompt"></p>
+      <p id="answer-timer" class="timer" aria-live="off"></p>
+      <textarea id="answer-text" maxlength="120" rows="3" placeholder="Your answer" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+      <button id="answer-send" type="button">Send</button>
+      <p id="answer-sent" class="muted" hidden>Sent, you can still edit</p>
+    </section>
+
+    <section id="s-look" hidden>
+      <h1>Look at the screen</h1>
+    </section>
+
+    <section id="s-voting" hidden>
+      <h1>Who is human?</h1>
+      <p id="vote-timer" class="timer" aria-live="off"></p>
+      <div id="vote-buttons" class="vote-grid"></div>
+      <input id="vote-reason" type="text" maxlength="120" placeholder="Why? (optional)" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+    </section>
+  </main>
+
+  <section id="role" class="role-wrap" hidden>
+    <div id="role-card" class="role-card" role="button" tabindex="0" aria-label="Hold to see your role">
+      <p id="role-label" class="role-label">Hold to see your role</p>
+      <p id="role-text" class="role-text"></p>
+      <p id="role-code" class="role-code"></p>
+    </div>
+  </section>
+
+  <script src="/public/phone.js"></script>
 </body>
 </html>
