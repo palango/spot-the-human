@@ -90,7 +90,7 @@ Player posts are commentary: only the room's votes remove a player. Agents are n
 - Every answer, human or agent, gets the same treatment before it reaches the screen: lowercased, punctuation stripped, cut to 120 characters. Style alone must not give anyone away.
 - Answers and player vote posts appear together at the end of their timer, so speed gives nothing away.
 - Individual agent activity is never shown on its own (no "agent C is thinking", no early posts), since anything only agents do would identify them.
-- Agents are told to write like a person typing fast on a phone: short, casual, sometimes off topic or a little wrong. No polished paragraphs, no lists, no "As an AI". Each agent gets a short personality on top of the shared base prompt so the four don't sound alike.
+- Agents are told to write like a person typing fast on a phone: short, casual, sometimes off topic or a little wrong. No polished paragraphs, no lists, no "As an AI". Each agent gets a short personality on top of the shared base prompt so the agents don't all sound alike.
 - Agents are told that one or more of the players are humans pretending to be agents, and that they should find them. Each agent sees every prompt and every player's answers so far, so it can reason when voting.
 - The prompt list is chosen so a human can't win just by being plainly human. Paul reviews it before the session.
 
