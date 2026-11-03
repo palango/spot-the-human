@@ -6,7 +6,7 @@
 
 **Architecture:** One Node process holds a single in-memory `Session` (phones, prompt pool, current `Game`). A pure game engine (`src/game.ts`) owns every phase change and deadline; the server (`src/server.ts`) only translates WebSocket messages into engine calls and pushes per-recipient views built by `src/views.ts`. Agents sit behind an `AgentBrain` interface so the engine and server tests run with a scripted brain and the real Claude brain is checked by a live smoke script.
 
-**Tech Stack:** Node 24, TypeScript 7 run with `tsx`, `ws` 8, `@anthropic-ai/sdk` 1.3, `qrcode` 1.5, `vitest` 5. Plain HTML/JS pages, no frontend framework, no bundler.
+**Tech Stack:** Node 24, TypeScript 7 run with `tsx`, `ws` 8, `@anthropic-ai/sdk` 0.115, `qrcode` 1.5, `vitest` 4. Versions stay under Paul's npm cutoff (`before=2026-07-28` in `~/.npmrc`); never bypass it. Plain HTML/JS pages, no frontend framework, no bundler.
 
 **Spec:** `docs/superpowers/specs/2026-11-04-spot-the-human-design.md` (read it before any task).
 
@@ -109,7 +109,7 @@ export interface AgentBrain {
 **Interfaces:**
 - Produces: `src/types.ts` (above); `src/config.ts` exporting `ANSWER_MS = 45_000`, `VOTE_MS = 60_000`, `EXTEND_MS = 15_000`, `AGENT_MARGIN_MS = 3_000`, `MAX_SHOWN_CHARS = 120`, `PROMPTS_PER_ROUND = 3`, `ROUNDS = 3`, `LETTERS: Letter[]`, `TICK_MS = 1_000`, `REJOIN_MAX_FAILS = 5`; `normalizeShown(text: string): string` in `src/text.ts`.
 
-- [ ] **Step 1:** `npm init`, set `"type": "module"`, install exact versions: `ws@8.18.x @anthropic-ai/sdk@1.3.0 qrcode@1.5.4`, dev `typescript@7.0.2 tsx vitest@5.0.5 @types/ws @types/qrcode @types/node`. Scripts: `"test": "vitest run"`, `"typecheck": "tsc --noEmit"`, `"start": "tsx src/main.ts"`, `"smoke": "tsx scripts/smoke-agents.ts"`, `"simulate": "tsx scripts/simulate.ts"`. `tsconfig`: strict, `module`/`moduleResolution` `nodenext`, `noEmit`.
+- [ ] **Step 1:** `npm init`, set `"type": "module"`, install exact versions: `ws@8.21.1 @anthropic-ai/sdk@0.115.0 qrcode@1.5.4`, dev `typescript@7.0.2 tsx@4.23.1 vitest@4.1.10 @types/ws@8.18.1 @types/qrcode@1.5.6 @types/node@24.13.3`. Scripts: `"test": "vitest run"`, `"typecheck": "tsc --noEmit"`, `"start": "tsx src/main.ts"`, `"smoke": "tsx scripts/smoke-agents.ts"`, `"simulate": "tsx scripts/simulate.ts"`. `tsconfig`: strict, `module`/`moduleResolution` `nodenext`, `noEmit`.
 - [ ] **Step 2: Write failing tests** in `tests/text.test.ts`:
 
 ```ts
