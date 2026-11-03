@@ -65,6 +65,8 @@ export interface SessionOptions {
   random?: () => number;
   onChange: () => void;
   durations?: Durations;
+  /** Whether a phone has an open connection right now. Only connected phones can be dealt human. Default: all are. */
+  isConnected?: (phoneId: string) => boolean;
 }
 
 /** Everything one Devcon session holds: joined phones, the prompt pool and the current game. */
@@ -76,6 +78,7 @@ export class Session {
   private readonly random: () => number;
   private readonly onChange: () => void;
   private readonly durations: Durations;
+  private readonly isConnected: (phoneId: string) => boolean;
   // Never reset, so a phaseId from an earlier game or before a reset can never match again.
   private lastPhaseId = 0;
 
@@ -85,6 +88,7 @@ export class Session {
     this.random = opts.random ?? Math.random;
     this.onChange = opts.onChange;
     this.durations = opts.durations ?? DEFAULT_DURATIONS;
+    this.isConnected = opts.isConnected ?? (() => true);
   }
 
   get phase(): PhaseName {
@@ -121,7 +125,9 @@ export class Session {
   start(humanCount: 1 | 2): { ok: true } | { ok: false; reason: "not-in-lobby" | "too-few-ready" | "too-few-prompts" } {
     if (this.phase !== "lobby") return { ok: false, reason: "not-in-lobby" };
     const ready = [...this.phones.values()].filter((p) => p.ready).map((p) => p.id);
-    if (ready.length < humanCount) return { ok: false, reason: "too-few-ready" };
+    // A phone that locked or closed its tab still votes, but a hidden human who can't answer would show "…" all game.
+    const humanCandidates = ready.filter((id) => this.isConnected(id));
+    if (humanCandidates.length < humanCount) return { ok: false, reason: "too-few-ready" };
     if (!this.pool.canStartGame()) return { ok: false, reason: "too-few-prompts" };
     this.game = new Game({
       brain: this.brain,
@@ -130,7 +136,7 @@ export class Session {
       onChange: this.onChange,
       durations: this.durations,
       roster: ready,
-      humanPhoneIds: shuffle(ready, this.random).slice(0, humanCount),
+      humanPhoneIds: shuffle(humanCandidates, this.random).slice(0, humanCount),
       nextPhaseId: () => ++this.lastPhaseId,
     });
     this.game.begin();

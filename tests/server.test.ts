@@ -308,6 +308,58 @@ describe("server", () => {
     expect(after.view.you.draft).toBe("x".repeat(500));
   });
 
+  it("resends views with a falling countdown while a deadline runs", async () => {
+    const { phone, screen } = await setup({ answerMs: 2_500 });
+    const p = await phone();
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    const first = await p.client.view((v) => v.phase === "answering");
+    // Nothing is sent and nothing changes during answering, so the next view can only come from the ticker.
+    const second = await p.client.view();
+    expect(second.phaseId).toBe(first.phaseId);
+    expect(second.remainingMs!).toBeLessThan(first.remainingMs!);
+    expect({ ...second, remainingMs: 0 }).toEqual({ ...first, remainingMs: 0 });
+  });
+
+  it("never deals human to a phone with no open socket at Start", async () => {
+    const { phone, screen } = await setup({ answerMs: 2_000 });
+    const online = await phone();
+    const locked = await phone();
+    await locked.client.close();
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 2 });
+    expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
+
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    const playing = await online.client.view((v) => v.phase === "answering");
+    expect(playing.you.role).toBe("human");
+    expect(playing.rosterCount).toBe(2);
+    const back = await phone(locked.phoneId);
+    expect(back.view.you.inRoster).toBe(true);
+    expect(back.view.you.role).toBe("voter");
+  });
+
+  it("hello-phone without an id on a bound socket keeps its phone", async () => {
+    const { phone, screen } = await setup();
+    const p = await phone();
+    const host = await screen(HOST_KEY);
+    p.client.send({ t: "hello-phone" });
+    expect(await p.client.next((m) => m.t === "you")).toEqual({ t: "you", phoneId: p.phoneId });
+    p.client.send({ t: "ready", ready: false });
+    // The ready toggle comes after the hello, so its view shows whether a second phone was added.
+    const view = await host.view<ScreenView>((v) => v.readyCount === 0);
+    expect(view.rosterCount).toBe(0);
+    p.client.send({ t: "ready", ready: true });
+    expect((await host.view<ScreenView>((v) => v.readyCount > 0)).readyCount).toBe(1);
+  });
+
+  it("rejects start on a busy port", async () => {
+    const { server } = await setup();
+    const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
+    const opts = { port: server.port, hostKey: HOST_KEY, publicUrl: "https://example.test", brain: new ScriptedBrain(), pool };
+    await expect(startServer(opts)).rejects.toMatchObject({ code: "EADDRINUSE" });
+  });
+
   it("qr and pages are served", async () => {
     const { server } = await setup();
     const base = `http://127.0.0.1:${server.port}`;

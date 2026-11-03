@@ -115,6 +115,37 @@ describe("start", () => {
     expect(session.start(2)).toEqual({ ok: false, reason: "not-in-lobby" });
   });
 
+  it("deals human only to connected phones but keeps disconnected ready phones in the roster", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
+      const connected = new Set<string>();
+      const session = new Session({
+        brain: new ScriptedBrain(),
+        pool,
+        onChange: vi.fn(),
+        random: seededRandom(seed),
+        isConnected: (id) => connected.has(id),
+      });
+      const phones = Array.from({ length: 4 }, () => session.addPhone());
+      connected.add(phones[1]!.id);
+      connected.add(phones[3]!.id);
+      expect(session.start(2)).toEqual({ ok: true });
+      const game = session.game!;
+      const humanIds = game.players.filter((p) => p.kind === "human").map((p) => p.phoneId).sort();
+      expect(humanIds).toEqual([phones[1]!.id, phones[3]!.id].sort());
+      expect([...game.roster].sort()).toEqual(phones.map((p) => p.id).sort());
+    }
+  });
+
+  it("refuses when fewer ready phones are connected than the human count", () => {
+    const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
+    const session = new Session({ brain: new ScriptedBrain(), pool, onChange: vi.fn(), isConnected: () => false });
+    session.addPhone();
+    session.addPhone();
+    expect(session.start(1)).toEqual({ ok: false, reason: "too-few-ready" });
+    expect(session.phase).toBe("lobby");
+  });
+
   it("picks different human letters for different seeds", () => {
     const picks = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {

@@ -52,3 +52,7 @@ Records deviations from the plan.
 - Every `ws` socket has an `error` listener: without one, an oversized message (ws closes it with 1009) would throw and crash the process.
 - `main.ts` loads `prompts.txt` relative to the source file, not the working directory, and URL-encodes the host key in the printed screen URL. It rejects a non-numeric `PORT`.
 - `public/phone.html` and `public/screen.html` are placeholders for Tasks 7 and 8.
+- Fix round 1: `Session` takes an optional `isConnected(phoneId)` callback (default: every phone is connected). `start()` deals hidden humans only from ready phones with an open socket; every ready phone still joins the roster, and `too-few-ready` now means fewer ready and connected phones than the human count. The server answers it from its open sockets.
+- `hello-phone` with no known id on a socket that already has a phone keeps that phone instead of adding one.
+- `wss` has an `error` listener: a listen error (such as EADDRINUSE) rejects `startServer`, and later server errors are logged. The ticker starts only after listening succeeds, so a failed start leaves no timer behind. `main.ts` prints a one-line message and exits 1 when the port is busy.
+- `main.ts` prints the host screen URL as `http://localhost:<port>/screen?host=<key>`, so the key never goes through the tunnel.

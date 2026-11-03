@@ -69,12 +69,13 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
       broadcast();
     });
   };
-  const session = new Session({ brain: opts.brain, pool: opts.pool, onChange: scheduleBroadcast, durations: opts.durations });
-
-  // Phones show the countdown the server sends, so resend views while a deadline runs.
-  const ticker = setInterval(() => {
-    if (session.game?.deadline != null) broadcast();
-  }, TICK_MS);
+  const session = new Session({
+    brain: opts.brain,
+    pool: opts.pool,
+    onChange: scheduleBroadcast,
+    durations: opts.durations,
+    isConnected: (phoneId) => [...clients].some((c) => c.phoneId === phoneId && c.ws.readyState === WebSocket.OPEN),
+  });
 
   function send(client: Client, msg: unknown): void {
     if (client.ws.readyState === WebSocket.OPEN) client.ws.send(JSON.stringify(msg));
@@ -113,8 +114,10 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
 
   function onHelloPhone(client: Client, msg: Incoming): void {
     const known = typeof msg.phoneId === "string" ? session.phones.get(msg.phoneId) : undefined;
+    // A socket that already has a phone keeps it rather than adding a second one.
+    const bound = client.phoneId !== null ? session.phones.get(client.phoneId) : undefined;
     // A new phone in the lobby is in the next game; during a game it waits for the next one.
-    bindPhone(client, (known ?? session.addPhone()).id);
+    bindPhone(client, (known ?? bound ?? session.addPhone()).id);
   }
 
   function onRejoin(client: Client, msg: Incoming): void {
@@ -238,13 +241,28 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     ws.on("error", () => {});
   });
 
-  await new Promise<void>((done, fail) => {
-    server.once("error", fail);
-    server.listen(opts.port, () => {
-      server.off("error", fail);
-      done();
-    });
+  // ws re-emits the http server's errors on wss; without a listener they would crash the process.
+  let failStart: ((err: Error) => void) | null = null;
+  wss.on("error", (err) => {
+    if (failStart) failStart(err);
+    else console.error(`server error: ${err.message}`);
   });
+  try {
+    await new Promise<void>((done, fail) => {
+      failStart = fail;
+      server.listen(opts.port, () => done());
+    });
+  } catch (err) {
+    wss.close();
+    throw err;
+  } finally {
+    failStart = null;
+  }
+
+  // Phones show the countdown the server sends, so resend views while a deadline runs.
+  const ticker = setInterval(() => {
+    if (session.game?.deadline != null) broadcast();
+  }, TICK_MS);
   const address = server.address();
   const port = typeof address === "object" && address !== null ? address.port : opts.port;
 
