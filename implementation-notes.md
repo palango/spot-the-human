@@ -41,3 +41,14 @@ Records deviations from the plan.
 - `answers` is present only in "revealed", `posts` only in "votePosts" and "removal", `removal` (with `tally`) only in "removal".
 - `you.role` is `null` for a phone outside the roster (joined mid-game), `"voter"` for roster phones that are not a player in, `"human"` only while the human is in. `draft` and `vote` are empty for phones outside the roster.
 - The repo has no Prettier config; `src/views.ts` follows the style of `src/game.ts` and is not run through Prettier.
+
+## Task 6
+
+- `durations` was already on `Session` (Task 3), so `ServerOptions.durations` just passes it through as the engine's `Durations` type.
+- Protocol additions the brief leaves open: a wrong rejoin code gets `{t:"error", reason:"bad-code"}` (so the phone page can say so); the fifth wrong code on a socket closes it with 1008 instead. Rejoin codes are trimmed and uppercased before lookup, so a code typed in lowercase works.
+- After Reset the server closes every phone socket bound to a wiped phone with code 4000; the phone page reconnects, its `hello-phone` id is unknown, and it gets a new identity. This avoids ever calling `phoneView` for an unknown id.
+- A socket is a phone (after `hello-phone` or `rejoin`) or a screen (after `hello-screen`); a later hello of the other kind switches it. `rejoin` also works on an already bound phone socket, so the "not in this game" page can rejoin an old identity. `{t:"host"}` from a non-screen socket is ignored; from a screen without the key it gets `not-host`. Malformed messages (bad JSON, wrong field types, unknown `t` or `cmd`, `humans` not 1 or 2) are ignored.
+- Static files are limited to known extensions (html, js, css, svg, png, ico, json, txt); anything else is 404. Pages are sent with `cache-control: no-cache`.
+- Every `ws` socket has an `error` listener: without one, an oversized message (ws closes it with 1009) would throw and crash the process.
+- `main.ts` loads `prompts.txt` relative to the source file, not the working directory, and URL-encodes the host key in the printed screen URL. It rejects a non-numeric `PORT`.
+- `public/phone.html` and `public/screen.html` are placeholders for Tasks 7 and 8.
