@@ -6,6 +6,9 @@
   var BACKOFF_MAX_MS = 5000;
   var STORAGE_KEY = "spotTheHuman.phoneId";
   var LOOK_PHASES = ["revealed", "votePosts", "removal", "ended"];
+  // The server resends views every second while a timer runs, so a longer gap means a dead socket. A phone
+  // whose network died can keep a half-open socket that still reads as OPEN.
+  var STALE_MS = 3000;
 
   function $(id) { return document.getElementById(id); }
 
@@ -51,7 +54,9 @@
 
   var socket = null;
   var backoff = BACKOFF_MIN_MS;
+  var retryTimer = null;
   var view = null;
+  var lastViewAt = 0; // local time of the last view, or of the last socket open
   var deadlineAt = null; // local clock time at which the phase ends
   var holding = false;
 
@@ -79,6 +84,7 @@
     ws.onopen = function () {
       if (socket !== ws) return;
       backoff = BACKOFF_MIN_MS;
+      lastViewAt = Date.now(); // give the first view the full STALE_MS to arrive
       resync = true;
       var id = storage.get();
       send(id ? { t: "hello-phone", phoneId: id } : { t: "hello-phone" });
@@ -95,17 +101,48 @@
       els.conn.hidden = false;
       // The host reset the game: this phone is unknown now, so start fresh.
       if (ev.code === 4000) { storage.clear(); view = null; filledPhaseId = null; }
-      setTimeout(connect, backoff);
+      retryTimer = setTimeout(function () { retryTimer = null; connect(); }, backoff);
       backoff = Math.min(backoff * 2, BACKOFF_MAX_MS);
     };
     ws.onerror = function () { /* onclose follows */ };
   }
+
+  // Drops the current socket (or a pending retry) and connects again at once.
+  function reconnectNow() {
+    var old = socket;
+    socket = null; // the old socket's handlers check this and go quiet
+    clearTimeout(retryTimer);
+    retryTimer = null;
+    if (old) { try { old.close(); } catch (e) { /* already closing */ } }
+    els.conn.hidden = false;
+    backoff = BACKOFF_MIN_MS;
+    connect();
+  }
+
+  function viewIsOld() {
+    return Date.now() - lastViewAt > STALE_MS;
+  }
+
+  // Only an open socket is checked: one still connecting gets to finish.
+  setInterval(function () {
+    var timed = view && (view.phase === "answering" || view.phase === "voting");
+    if (timed && socket && socket.readyState === WebSocket.OPEN && viewIsOld()) reconnectNow();
+  }, 1000);
+
+  // After the phone sleeps or the app is in the background, the page can't tell a quiet phase from a dead
+  // socket, so any view older than STALE_MS counts as stale here.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) return;
+    if (!socket || (socket.readyState === WebSocket.OPEN && viewIsOld())) reconnectNow();
+  });
+  window.addEventListener("online", reconnectNow);
 
   function handle(msg) {
     if (msg.t === "you" && typeof msg.phoneId === "string") {
       storage.set(msg.phoneId);
     } else if (msg.t === "view" && msg.view) {
       els.conn.hidden = true;
+      lastViewAt = Date.now();
       flushEndedPhase(msg.view);
       view = msg.view;
       deadlineAt = typeof view.remainingMs === "number" ? Date.now() + view.remainingMs : null;
@@ -157,6 +194,8 @@
     if (v.phase === "lobby") {
       show(els.lobby);
       els.readyToggle.setAttribute("aria-pressed", String(v.you.ready));
+      // The label says the state, so nobody taps it off thinking it turns it on.
+      els.readyToggle.textContent = v.you.ready ? "You're in · tap to sit out" : "Tap to join the next game";
       els.readyCount.textContent = String(v.readyCount);
     } else if (!inRoster) {
       show(els.out);
