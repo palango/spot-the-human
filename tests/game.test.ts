@@ -99,7 +99,7 @@ describe("start", () => {
     expect(game.round).toBe(1);
     expect(game.promptInRound).toBe(1);
     expect(game.prompt).toMatch(/^prompt \d+$/);
-    expect(game.deadline).toBe(now + 45_000);
+    expect(game.deadline).toBe(now + 30_000);
     expect(onChange).toHaveBeenCalled();
   });
 
@@ -225,7 +225,7 @@ describe("answering", () => {
     const { game, voters } = startGame(2);
     for (const v of voters) game.draft(v.id, game.phaseId, "voter secret");
     expect(game.draftOf(voters[0]!.id)).toBe("voter secret");
-    await vi.advanceTimersByTimeAsync(44_999);
+    await vi.advanceTimersByTimeAsync(29_999);
     expect(game.phase).toBe("answering");
     await vi.advanceTimersByTimeAsync(1);
     expect(game.phase).toBe("revealed");
@@ -246,8 +246,8 @@ describe("answering", () => {
     const brain = new ScriptedBrain({ delayMs: { A: 50_000, B: 50_000, C: 50_000 } });
     const { game, agents } = startGame(2, { brain });
     expect(brain.answerCalls).toHaveLength(4);
-    for (const call of brain.answerCalls) expect(call.budgetMs).toBe(42_000);
-    await vi.advanceTimersByTimeAsync(45_000);
+    for (const call of brain.answerCalls) expect(call.budgetMs).toBe(27_000);
+    await vi.advanceTimersByTimeAsync(30_000);
     expect(game.phase).toBe("revealed");
     for (const a of agents) {
       expect(game.answers[a.letter]).toBe(slow.includes(a.letter) ? "…" : `agent ${a.letter.toLowerCase()}`);
@@ -282,10 +282,10 @@ describe("answering", () => {
     const id = game.phaseId;
     onChange.mockClear();
     game.extend();
-    expect(game.deadline).toBe(now + 60_000);
+    expect(game.deadline).toBe(now + 45_000);
     expect(game.phaseId).toBe(id);
     expect(onChange).toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(59_999);
+    await vi.advanceTimersByTimeAsync(44_999);
     expect(game.phase).toBe("answering");
     await vi.advanceTimersByTimeAsync(1);
     expect(game.phase).toBe("revealed");
@@ -302,7 +302,7 @@ describe("answering", () => {
     expect(game.prompt).not.toBe(oldPrompt);
     expect(game.phase).toBe("answering");
     expect(game.phaseId).toBe(oldId + 1);
-    expect(game.deadline).toBe(Date.now() + 45_000);
+    expect(game.deadline).toBe(Date.now() + 30_000);
     expect(game.draftOf(h.phoneId!)).toBe("");
     game.draft(h.phoneId!, oldId, "late old draft");
     expect(game.draftOf(h.phoneId!)).toBe("");
@@ -316,13 +316,13 @@ describe("answering", () => {
 
   it("skip drops the old prompt's agent results", async () => {
     const all = (text: string) => Object.fromEntries(LETTERS.map((l) => [l, text]));
-    // The old prompt's answers arrive at 30 s, after the new prompt's answers (6 s).
-    const brain = new ScriptedBrain({ delayMs: 30_000, answers: all("old") });
+    // The old prompt's answers arrive at 20 s, after the new prompt's answers (6 s).
+    const brain = new ScriptedBrain({ delayMs: 20_000, answers: all("old") });
     const { game, agents } = startGame(2, { brain });
     await vi.advanceTimersByTimeAsync(5_000);
     brain.opts = { delayMs: 1_000, answers: all("new") };
     game.skip();
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     expect(game.phase).toBe("answering");
     await runToDeadline(game);
     for (const a of agents) expect(game.answers[a.letter]).toBe("new");
@@ -384,7 +384,7 @@ describe("voting", () => {
 
   it("a late agent vote from an earlier round is dropped", async () => {
     // Round 1 votes resolve 200 s after they were asked: round 1's vote runs to its 60 s deadline, round 2 takes
-    // 3 x 45 s, so they land 5 s into round 2's vote window.
+    // 3 x 30 s, so they land 50 s into round 2's vote window.
     const brain = new ScriptedBrain({ delayMs: 200_000 });
     const { game, agents } = startGame(2, { brain });
     const target = agents[0]!.letter;
@@ -651,7 +651,7 @@ describe("end and replay", () => {
     expect(game.phase).toBe("answering");
     expect(game.round).toBe(2);
     expect(game.promptInRound).toBe(1);
-    expect(game.deadline).toBe(now + 45_000);
+    expect(game.deadline).toBe(now + 30_000);
     expect(game.votedCount()).toBe(0);
   });
 

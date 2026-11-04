@@ -1,6 +1,6 @@
 import type { Letter } from "./types.js";
 
-export const ANSWER_MS = 45_000;
+export const ANSWER_MS = 30_000;
 export const VOTE_MS = 60_000;
 export const EXTEND_MS = 15_000;
 export const AGENT_MARGIN_MS = 3_000;
