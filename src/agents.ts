@@ -107,7 +107,7 @@ Write your answer, ${answerStyle(ctx)}: a few words, nothing else.`;
 // How to look for the human in this one vote. Left alone, every agent reads the same surface tell (a homely
 // persona, a Hindi word) and the five pile onto one player; a different angle each spreads targets and reasons.
 export const VOTE_ANGLES: string[] = [
-  "go with your gut about who feels off, and say it as a hunch",
+  "go with your gut about who feels off",
   "look for whoever keeps dodging or playing it safe, answer after answer",
   "look for a slip: a fact or a sum a person would get wrong, or an answer that took real thinking",
   "look for whoever seems to be trying hard to blend in with everyone else",
@@ -120,6 +120,21 @@ function voteAngle(ctx: AgentContext): string {
   return VOTE_ANGLES[(ctx.personaIndex + voteNumber) % VOTE_ANGLES.length]!;
 }
 
+// How to word the reason in this one vote. Agents otherwise all write "too X, feels Y".
+export const REASON_FORMS: string[] = [
+  "point at one thing they said",
+  "ask them a question",
+  "make it a joke or a dig",
+  "admit you're not sure",
+  "a flat hunch with no explanation",
+];
+
+// personaIndex * 2 is a different permutation from the angles', so an agent's angle and form pair up differently.
+function reasonForm(ctx: AgentContext): string {
+  const voteNumber = ctx.transcript.filter((entry) => entry.kind === "posts").length;
+  return REASON_FORMS[(ctx.personaIndex * 2 + voteNumber) % REASON_FORMS.length]!;
+}
+
 export function buildVoteMessage(ctx: AgentContext): string {
   const candidates = ctx.inPlayers.filter((l) => l !== ctx.letter).join(", ");
   return `${header(ctx)}
@@ -128,7 +143,7 @@ What the screen has shown so far:
 
 ${describeTranscript(ctx)}
 
-Vote time. Post a vote for the player you think is human, one of ${candidates} (not yourself). This time, ${voteAngle(ctx)}. A strong voice or lots of everyday detail is no proof: agents write like that too. The reason goes on the screen, so write it the same casual way, a hunch or a dig in 2 to 8 words, in your own voice. say why in your own words instead of quoting their answer back. Reply with exactly these two lines:
+Vote time. Post a vote for the player you think is human, one of ${candidates} (not yourself). This time, ${voteAngle(ctx)}. A strong voice or lots of everyday detail is no proof: agents write like that too. The reason goes on the screen, so write it the same casual way in 2 to 8 words, in your own voice: ${reasonForm(ctx)}. don't start with "too", and don't quote their answer back. Reply with exactly these two lines:
 VOTE: <letter>
 REASON: <a few words>`;
 }

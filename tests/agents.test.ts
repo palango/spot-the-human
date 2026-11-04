@@ -7,6 +7,7 @@ import {
   ClaudeBrain,
   PERSONAS,
   ANSWER_STYLES,
+  REASON_FORMS,
   VOTE_ANGLES,
   buildAnswerMessage,
   buildSystemPrompt,
@@ -107,6 +108,15 @@ describe("buildVoteMessage", () => {
     expect(new Set(round1)).toEqual(new Set([0, 1, 2, 3, 4]));
     expect(new Set(round2)).toEqual(new Set([0, 1, 2, 3, 4]));
     round1.forEach((angle, i) => expect(round2[i]).not.toBe(angle));
+  });
+
+  it("gives the five agents five different ways to word a reason, and moves each to another next round", () => {
+    const formOf = (message: string) => REASON_FORMS.findIndex((form) => message.includes(form));
+    const round1 = PERSONAS.map((_, i) => formOf(buildVoteMessage({ ...ctx, personaIndex: i })));
+    const round2 = PERSONAS.map((_, i) => formOf(buildVoteMessage({ ...ctxWithHistory, personaIndex: i })));
+    expect(new Set(round1)).toEqual(new Set([0, 1, 2, 3, 4]));
+    expect(new Set(round2)).toEqual(new Set([0, 1, 2, 3, 4]));
+    round1.forEach((form, i) => expect(round2[i]).not.toBe(form));
   });
 
   it("lists the players still in, without the voter", () => {
