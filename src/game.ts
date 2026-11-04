@@ -41,7 +41,8 @@ const REJOIN_LENGTH = 6;
 const PERSONAS = [0, 1, 2, 3, 4];
 const NO_POST = "…";
 
-interface RoomVote { target: Letter; reason: string }
+// A null target is a reason typed before picking a letter: it is the post for a hidden human, not a room vote.
+interface RoomVote { target: Letter | null; reason: string }
 interface AgentVote { target: Letter | null; reason: string }
 
 function shuffle<T>(items: readonly T[], random: () => number): T[] {
@@ -250,7 +251,7 @@ export class Game {
   }
 
   votedCount(): number {
-    return this.votes.size;
+    return [...this.votes.values()].filter((vote) => vote.target !== null).length;
   }
 
   canSkip(): boolean {
@@ -266,9 +267,9 @@ export class Game {
     this.drafts.set(phoneId, text);
   }
 
-  vote(phoneId: string, phaseId: number, target: Letter, reason: string): void {
+  vote(phoneId: string, phaseId: number, target: Letter | null, reason: string): void {
     if (this.phase !== "voting" || phaseId !== this.phaseId || !this.roster.has(phoneId)) return;
-    if (typeof reason !== "string" || !this.isIn(target)) return;
+    if (typeof reason !== "string" || (target !== null && !this.isIn(target))) return;
     this.votes.set(phoneId, { target, reason });
     this.onChange();
   }
@@ -449,7 +450,7 @@ export class Game {
   // Only room votes remove a player: the unique top vote-getter goes; a tie or no votes removes nobody.
   private removeTopVoteGetter(): void {
     const tally = Object.fromEntries(LETTERS.map((l) => [l, 0])) as Record<Letter, number>;
-    for (const vote of this.votes.values()) tally[vote.target] += 1;
+    for (const vote of this.votes.values()) if (vote.target !== null) tally[vote.target] += 1;
     const top = Math.max(...Object.values(tally));
     const leaders = LETTERS.filter((l) => tally[l] === top);
     const removed = top > 0 && leaders.length === 1 ? this.players.find((p) => p.letter === leaders[0]) : undefined;

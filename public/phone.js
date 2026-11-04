@@ -40,14 +40,21 @@
   };
   var sections = [els.loading, els.lobby, els.out, els.answering, els.look, els.voting];
 
+  // The id also lives in memory, so a browser that blocks storage keeps its phone across reconnects while the
+  // page stays open; only a reload loses it there (the rejoin code covers that).
+  var memoryId = null;
   var storage = {
     get: function () {
-      try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+      var stored = null;
+      try { stored = localStorage.getItem(STORAGE_KEY); } catch (e) { /* storage blocked */ }
+      return stored || memoryId;
     },
     set: function (id) {
+      memoryId = id;
       try { localStorage.setItem(STORAGE_KEY, id); } catch (e) { /* storage blocked */ }
     },
     clear: function () {
+      memoryId = null;
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) { /* storage blocked */ }
     }
   };
@@ -327,8 +334,8 @@
     var you = view && view.you;
     if (!you || !you.inRoster) return;
     els.roleText.textContent = you.role === "human"
-      ? "You're a hidden human. You are Player " + you.letter + ". Make them think you're an agent."
-      : "You're a voter. Watch the six players and find the humans hiding among them.";
+      ? "You're a hidden human, Player " + you.letter + ". Make them think you're an agent. Your answers, vote and reason show on screen."
+      : "You're a voter. Watch the six players and find the humans hiding among them. Vote and say why in a few words.";
     els.roleCode.textContent = "Rejoin code: " + you.rejoinCode;
   }
 

@@ -151,7 +151,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
         }
         return;
       case "vote":
-        if (game && typeof msg.phaseId === "number" && isLetter(msg.target) && typeof msg.reason === "string") {
+        if (game && typeof msg.phaseId === "number" && (msg.target === null || isLetter(msg.target)) && typeof msg.reason === "string") {
           game.vote(phoneId, msg.phaseId, msg.target, msg.reason.slice(0, MAX_TEXT_CHARS));
         }
         return;

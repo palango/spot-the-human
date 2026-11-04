@@ -452,6 +452,21 @@ describe("voting", () => {
     expect(game.transcript.at(-1)).toEqual({ kind: "posts", posts: game.posts });
   });
 
+  it("keeps a reason typed before a letter: posted for a human, not counted as a room vote", async () => {
+    const { game, humans, phones } = startGame(2);
+    const h = humans[0]!;
+    const voter = phones.find((p) => !humans.some((x) => x.phoneId === p.id))!;
+    await playToVoting(game);
+    game.vote(h.phoneId!, game.phaseId, null, "still thinking");
+    game.vote(voter.id, game.phaseId, null, "hmm");
+    expect(game.votedCount()).toBe(0);
+    expect(game.voteOf(h.phoneId!)).toEqual({ target: null, reason: "still thinking" });
+    game.closeVote();
+    expect(game.posts.find((p) => p.letter === h.letter)).toEqual({ letter: h.letter, target: null, reason: "still thinking" });
+    game.next();
+    expect(game.removal).toEqual({ removed: null, kind: null, tally: {} });
+  });
+
   it("human self-vote counts in room but posts no target", async () => {
     const { game, humans } = startGame(2);
     const h = humans[0]!;

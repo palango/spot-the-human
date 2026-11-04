@@ -260,6 +260,23 @@ describe("server", () => {
     expect(host.errors()).toEqual([]);
   });
 
+  it("keeps a vote reason sent before a letter is picked", async () => {
+    const { phone, screen } = await setup({ answerMs: 50, voteMs: 5_000 });
+    const p = await phone();
+    await phone();
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 1 });
+    for (let i = 0; i < 3; i++) {
+      const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
+      host.send({ t: "host", cmd: "next", phaseId: revealed.phaseId });
+    }
+    const voting = await p.client.view((v) => v.phase === "voting");
+    p.client.send({ t: "vote", phaseId: voting.phaseId, target: null, reason: "not sure yet" });
+    const view = await p.client.view((v) => v.you.vote.reason === "not sure yet");
+    expect(view.you.vote.target).toBeNull();
+    expect(view.votedCount).toBe(0);
+  });
+
   it("late joiner waits then plays next game", async () => {
     const { phone, screen } = await setup({ answerMs: 2_000 });
     await phone();

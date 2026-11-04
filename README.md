@@ -54,7 +54,7 @@ To test through the tunnel, use `wss://<tunnel host>/ws`.
 
 - Scan the QR code with the normal camera app. Do not install anything.
 - Check your phone says you're in. Everyone who is in when the host presses Start plays.
-- Each phone has a role card. Hold it to see it, let go to hide it. It also shows your rejoin code. It says either "You're a hidden human. You are Player X. Make them think you're an agent." or "You're a voter. Watch the six players and find the humans hiding among them." Do not show it to anyone.
+- Each phone has a role card. Hold it to see it, let go to hide it. It also shows your rejoin code. It says either "You're a hidden human, Player X. Make them think you're an agent. Your answers, vote and reason show on screen." or "You're a voter. Watch the six players and find the humans hiding among them. Vote and say why in a few words." Do not show it to anyone.
 - One or two of the six players are human. The rest are agents. A hidden human answers so that people take them for an agent.
 - Each prompt: 45 seconds to type an answer. It appears on screen with a letter, not a name.
 - Then 60 seconds to vote for who you think is human, with a short reason. Everybody votes, hidden humans too. The screen lists each player's three answers from the round while you vote.
