@@ -154,10 +154,12 @@
       els.removalMain.appendChild(document.createTextNode("Player " + r.removed + " was… "));
       els.removalMain.appendChild(el("span", r.kind === "human" ? "human" : "agent", article(r.kind)));
     } else {
-      els.removalMain.textContent = "Tie, nobody is out";
+      els.removalMain.textContent = "Tie in the room vote, nobody is out";
     }
+    // Only the room's phone votes remove a player; the players' posts before this are commentary. Saying so stops
+    // a tie after six posts against one player from looking like a lost vote.
     var parts = v.players.map(function (p) { return p.letter + " " + (r && r.tally ? r.tally[p.letter] || 0 : 0); });
-    els.removalTally.textContent = "votes: " + parts.join(" · ");
+    els.removalTally.textContent = "The room's votes decide, not the players' posts: " + parts.join(" · ");
   }
 
   function renderGame(v) {

@@ -58,7 +58,7 @@ To test through the tunnel, use `wss://<tunnel host>/ws`.
 - One or two of the six players are human. The rest are agents. A hidden human answers so that people take them for an agent.
 - Each prompt: 45 seconds to type an answer. It appears on screen with a letter, not a name.
 - Then 60 seconds to vote for who you think is human, with a short reason. Everybody votes, hidden humans too.
-- The player with the most votes is out and shown as a human or an agent. A tie or no votes removes nobody.
+- The player with the most votes from the room's phones is out and shown as a human or an agent. A tie or no votes removes nobody. The players post votes too, but those are only their opinion: the room decides.
 - Three rounds of three prompts. Humans win if one is still in at the end. If every human is voted out, the agents win.
 - Always type something before the timer runs out.
 - If your phone locks or the page reloads, reopen the page. If it says "Game in progress", type the rejoin code shown on your role card. Hold the role card to see it, and write it down.
@@ -88,7 +88,7 @@ Host screen (opened on the laptop with the host URL)
 - Error text in the host bar when Start fails (for example with no ready phones).
 - The address bar loses `?host=` after load.
 - Reload the screen tab mid-game: the "Connecting…" banner shows, then the game returns with the host bar, and the address bar still has no `?host=`.
-- Play to a tie ("Tie, nobody is out"), a human removed ("a human" in red) and a game that ends with "The agents win".
+- Play to a tie ("Tie in the room vote, nobody is out"), a human removed ("a human" in red) and a game that ends with "The agents win".
 - Check the screen on the real display at distance: answers, countdown and the removal reveal readable from the back of the room.
 
 Whole game
