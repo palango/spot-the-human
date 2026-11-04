@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Game, Session, type PhoneRecord } from "../src/game.js";
+import { Game, Session, type HumanCount, type PhoneRecord } from "../src/game.js";
 import { PromptPool } from "../src/prompts.js";
 import type { Letter, Player } from "../src/types.js";
 import { ScriptedBrain, seededRandom } from "./helpers.js";
@@ -23,7 +23,7 @@ function setup(opts: SetupOptions = {}) {
   return { session, brain, pool, onChange, phones };
 }
 
-function startGame(humanCount: 1 | 2 = 2, opts: SetupOptions = {}) {
+function startGame(humanCount: HumanCount = 2, opts: SetupOptions = {}) {
   const s = setup(opts);
   expect(s.session.start(humanCount)).toEqual({ ok: true });
   const game = s.session.game!;
@@ -144,6 +144,23 @@ describe("start", () => {
     session.addPhone();
     expect(session.start(1)).toEqual({ ok: false, reason: "too-few-ready" });
     expect(session.phase).toBe("lobby");
+  });
+
+  it("deals one or two humans at random for a random start", () => {
+    const counts = new Set<number>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const { humans } = startGame("random", { random: seededRandom(seed) });
+      expect([1, 2]).toContain(humans.length);
+      counts.add(humans.length);
+    }
+    expect(counts).toEqual(new Set([1, 2]));
+  });
+
+  it("refuses a random start with fewer than two connected ready phones, whatever the roll", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const { session } = setup({ phones: 1, random: seededRandom(seed) });
+      expect(session.start("random")).toEqual({ ok: false, reason: "too-few-ready" });
+    }
   });
 
   it("picks different human letters for different seeds", () => {

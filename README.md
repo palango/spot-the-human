@@ -25,13 +25,13 @@ Agents need `ANTHROPIC_API_KEY` in the shell that runs `npm start`. Before liste
    `npm run smoke` has five agents answer and vote, then vote again on a full three-round game, prints each call's time and `stop_reason`, and ends with "smoke ok".
 5. In the same terminal: `PUBLIC_URL=<that url> npm start`. It prints "Agent check ok" before "Listening".
 6. Open the `Screen (host): http://localhost:3000/screen?host=…` URL it prints, on the laptop. The host key is in that URL only. Never open it through the tunnel and never show the address bar. The page drops `?host=` from the address bar and keeps the key for that tab, so reloading the tab keeps the host bar.
-7. Mirror the screen to the display. The lobby shows a QR code for the phone URL.
+7. Best: set the display up as a second screen (not mirrored), open `http://localhost:3000/screen` without `?host=` there in full screen, and keep the host tab on the laptop. The room then never sees the host bar. If the room only allows mirroring, mirror the host tab: the human count shows only in the lobby, and "1 or 2" (the default) keeps it secret even there. The lobby shows a QR code for the phone URL.
 
 Options: `PORT` (default 3000; change the tunnel URL to match), `HOST_KEY` (default random per start; set it so the host URL survives a server restart), `SKIP_AGENT_CHECK=1` (skip the startup API check, for simulation runs without a key).
 
 The tunnel URL changes on every `cloudflared` start. If you restart it, restart the server with the new `PUBLIC_URL`.
 
-The host buttons: Start (with 1 or 2 humans), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. Next, +15 s, Close vote and Skip act once on a double click; a second click needs to come at least 0.6 seconds after the first. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
+The host buttons: Start (with 1 human, 2 humans, or 1 or 2, where the server picks in secret and needs at least 2 phones in), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. Next, +15 s, Close vote and Skip act once on a double click; a second click needs to come at least 0.6 seconds after the first. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
 
 ## If something breaks
 
@@ -83,7 +83,7 @@ Phone page
 - Mobile Safari and mobile Chrome both load through the tunnel.
 
 Host screen (opened on the laptop with the host URL)
-- Click every button: Start, the 1/2 humans switch, Next, +15 s (the countdown gains 15 s), Close vote, Skip (only in answering), New game, Reset. New game in a running game and Reset: the first click turns them red, a double click does nothing, a second click about a second later acts.
+- Click every button: Start, the 1 / 2 / 1-or-2 humans switch (hidden once a game starts), Next, +15 s (the countdown gains 15 s), Close vote, Skip (only in answering), New game, Reset. New game in a running game and Reset: the first click turns them red, a double click does nothing, a second click about a second later acts.
 - Double-click Next on the vote posts: the removal reveal still shows.
 - Error text in the host bar when Start fails (for example with no ready phones).
 - The address bar loses `?host=` after load.

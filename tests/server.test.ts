@@ -247,6 +247,19 @@ describe("server", () => {
     expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
   });
 
+  it("starts with a random human count and ignores any other count", async () => {
+    const { phone, screen } = await setup();
+    const phones = [await phone(), await phone()];
+    const host = await screen(HOST_KEY);
+    host.send({ t: "host", cmd: "start", humans: 3 });
+    host.send({ t: "host", cmd: "start", humans: "two" });
+    host.send({ t: "host", cmd: "start", humans: "random" });
+    await host.view<ScreenView>((v) => v.phase === "answering");
+    const roles = await Promise.all(phones.map(async (p) => (await p.client.view((v) => v.you.role !== null)).you.role));
+    expect(roles.filter((r) => r === "human").length).toBeGreaterThanOrEqual(1);
+    expect(host.errors()).toEqual([]);
+  });
+
   it("late joiner waits then plays next game", async () => {
     const { phone, screen } = await setup({ answerMs: 2_000 });
     await phone();

@@ -37,6 +37,8 @@
     hostBar: $("host-bar"),
     h1: $("h1"),
     h2: $("h2"),
+    hRandom: $("h-random"),
+    humans: $("humans"),
     start: $("b-start"),
     next: $("b-next"),
     extend: $("b-extend"),
@@ -66,7 +68,8 @@
   var backoff = BACKOFF_MIN_MS;
   var view = null;
   var deadlineAt = null; // local clock time at which the phase ends
-  var humans = 2;
+  // "random" lets the server pick one or two in secret, so not even the host knows.
+  var humans = "random";
   var errorTimer = null;
 
   function send(msg) {
@@ -212,7 +215,8 @@
     if (!isHost) return;
     var p = v.phase;
     els.start.disabled = p !== "lobby";
-    els.h1.disabled = els.h2.disabled = p !== "lobby";
+    // The room sees this bar, so the human count only shows while it is being chosen.
+    els.humans.hidden = p !== "lobby";
     els.next.disabled = !(p === "revealed" || p === "votePosts" || p === "removal");
     els.extend.disabled = !(p === "answering" || p === "voting");
     els.close.disabled = p !== "voting";
@@ -231,10 +235,12 @@
     humans = n;
     els.h1.setAttribute("aria-pressed", String(n === 1));
     els.h2.setAttribute("aria-pressed", String(n === 2));
+    els.hRandom.setAttribute("aria-pressed", String(n === "random"));
   }
 
   els.h1.addEventListener("click", function () { setHumans(1); });
   els.h2.addEventListener("click", function () { setHumans(2); });
+  els.hRandom.addEventListener("click", function () { setHumans("random"); });
   els.start.addEventListener("click", function () { command({ cmd: "start", humans: humans }); });
   // These carry the phase on screen, so the server drops a command for a phase that has closed. That alone doesn't
   // stop a double click: the new view reaches this page before the second click, which then carries the new

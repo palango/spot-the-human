@@ -23,6 +23,9 @@ import type {
 
 export interface PhoneRecord { id: string; rejoinCode: string; ready: boolean }
 
+/** How many hidden humans the host asks for; "random" lets the server pick one or two in secret. */
+export type HumanCount = 1 | 2 | "random";
+
 export interface Durations { answerMs: number; voteMs: number; extendMs: number; agentMarginMs: number }
 
 const DEFAULT_DURATIONS: Durations = {
@@ -122,13 +125,15 @@ export class Session {
     return undefined;
   }
 
-  start(humanCount: 1 | 2): { ok: true } | { ok: false; reason: "not-in-lobby" | "too-few-ready" | "too-few-prompts" } {
+  start(choice: HumanCount): { ok: true } | { ok: false; reason: "not-in-lobby" | "too-few-ready" | "too-few-prompts" } {
     if (this.phase !== "lobby") return { ok: false, reason: "not-in-lobby" };
     const ready = [...this.phones.values()].filter((p) => p.ready).map((p) => p.id);
     // A phone that locked or closed its tab still votes, but a hidden human who can't answer would show "…" all game.
     const humanCandidates = ready.filter((id) => this.isConnected(id));
-    if (humanCandidates.length < humanCount) return { ok: false, reason: "too-few-ready" };
+    // A random start checks against the larger count before rolling, so a refusal never reveals the roll.
+    if (humanCandidates.length < (choice === "random" ? 2 : choice)) return { ok: false, reason: "too-few-ready" };
     if (!this.pool.canStartGame()) return { ok: false, reason: "too-few-prompts" };
+    const humanCount = choice === "random" ? (this.random() < 0.5 ? 1 : 2) : choice;
     this.game = new Game({
       brain: this.brain,
       pool: this.pool,
