@@ -1,16 +1,17 @@
 # One prompt per line. Blank lines and lines starting with # are ignored.
+# Agents can't see the room, so no prompt asks about the room or the people in it: their made-up details would be checkable.
 What's 17 × 23?
 Describe the worst part of your commute today.
 Answer in one word: Mumbai traffic.
 Write a haiku about gas fees.
 What did you have for breakfast?
-What does this room smell like?
-Which talk today would you skip, and why?
+What's the last thing you googled?
+What did you want to be when you were ten?
 What would you do with 1 ETH right now?
 What's the last thing that made you laugh?
 What's your phone battery at?
 Tell us a secret.
-Say something nice about the person to your left.
+What would you name a pet rock?
 What's 144 divided by 12, plus 9?
 What's the capital of Australia?
 How many days are in a leap year?
@@ -18,10 +19,10 @@ Name three planets, fast.
 What's the square root of 169?
 Who wrote Romeo and Juliet?
 What's the chemical symbol for gold?
-What's the weirdest thing you ate at the venue today?
-What's the first thing you noticed when you walked in?
-What's the most annoying sound in this room right now?
-Describe the person across from you in three words.
+What's your most controversial food opinion?
+What's a word you always misspell?
+Describe your last holiday in five words.
+What's the most expensive thing you have lost?
 How did you get to the venue this morning?
 What's the hottest take you heard at Devcon so far?
 What's one thing you miss about home?
