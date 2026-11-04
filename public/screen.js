@@ -154,7 +154,8 @@
       els.removalMain.appendChild(document.createTextNode("Player " + r.removed + " was… "));
       els.removalMain.appendChild(el("span", r.kind === "human" ? "human" : "agent", article(r.kind)));
     } else {
-      els.removalMain.textContent = "Tie in the room vote, nobody is out";
+      var anyVotes = r && r.tally && Object.keys(r.tally).length > 0;
+      els.removalMain.textContent = anyVotes ? "Tie in the room vote, nobody is out" : "No room votes, nobody is out";
     }
     // Only the room's phone votes remove a player; the players' posts before this are commentary. Saying so stops
     // a tie after six posts against one player from looking like a lost vote.
