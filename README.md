@@ -31,7 +31,7 @@ Options: `PORT` (default 3000; change the tunnel URL to match), `HOST_KEY` (defa
 
 The tunnel URL changes on every `cloudflared` start. If you restart it, restart the server with the new `PUBLIC_URL`.
 
-The host buttons: Start (with 1 or 2 humans), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
+The host buttons: Start (with 1 or 2 humans), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. Next, +15 s, Close vote and Skip act once on a double click; a second click needs to come at least 0.6 seconds after the first. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
 
 ## If something breaks
 

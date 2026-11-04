@@ -7,6 +7,8 @@
   // confirm itself and a stray click long after doesn't either.
   var CONFIRM_MIN_MS = 600;
   var CONFIRM_MAX_MS = 3000;
+  // A host phase button (Next, +15, Close vote, Skip) acts at most once in this window.
+  var DOUBLE_CLICK_MS = 600;
   var HOST_KEY_STORAGE = "spotTheHuman.hostKey";
   var ERROR_SHOW_MS = 6000;
 
@@ -234,8 +236,15 @@
   els.h1.addEventListener("click", function () { setHumans(1); });
   els.h2.addEventListener("click", function () { setHumans(2); });
   els.start.addEventListener("click", function () { command({ cmd: "start", humans: humans }); });
-  // These carry the phase on screen, so a double click acts once: the server drops the second for a closed phase.
+  // These carry the phase on screen, so the server drops a command for a phase that has closed. That alone doesn't
+  // stop a double click: the new view reaches this page before the second click, which then carries the new
+  // phase. So a phase command within DOUBLE_CLICK_MS of the last one is the second half of a double click and is
+  // dropped here.
+  var lastPhaseCommandAt = -Infinity;
   function phaseCommand(cmd) {
+    var now = Date.now();
+    if (now - lastPhaseCommandAt < DOUBLE_CLICK_MS) return;
+    lastPhaseCommandAt = now;
     if (view) command({ cmd: cmd, phaseId: view.phaseId });
   }
   els.next.addEventListener("click", function () { phaseCommand("next"); });
