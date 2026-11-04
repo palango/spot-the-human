@@ -1,4 +1,4 @@
-import type { Session } from "./game.js";
+import type { Game, Session } from "./game.js";
 import type { Letter, PhaseName, PlayerPost, RemovalResult } from "./types.js";
 
 type Kind = "agent" | "human";
@@ -13,6 +13,8 @@ export interface ScreenView {
   /** Empty in the lobby. revealedKind is set for out players, and for everyone once the game has ended. */
   players: { letter: Letter; out: boolean; revealedKind: Kind | null }[];
   answers: Partial<Record<Letter, string>> | null; // revealed only
+  /** Voting only: each player still in, with their answers to this round's three prompts in order. */
+  roundAnswers: Partial<Record<Letter, string[]>> | null;
   posts: PlayerPost[] | null; // votePosts and removal only
   removal: RemovalResult | null; // removal only
   votedCount: number;
@@ -42,7 +44,7 @@ export function screenView(s: Session, now: number): ScreenView {
   if (!game) {
     return {
       phase: "lobby", phaseId: 0, round: 1, promptInRound: 1, prompt: null, remainingMs: null,
-      players: [], answers: null, posts: null, removal: null,
+      players: [], answers: null, roundAnswers: null, posts: null, removal: null,
       votedCount: 0, rosterCount: readyCount, readyCount,
       promptsLeft: s.promptsLeft, canSkip: false, winner: null,
     };
@@ -61,6 +63,7 @@ export function screenView(s: Session, now: number): ScreenView {
       revealedKind: p.out || phase === "ended" ? p.kind : null,
     })),
     answers: phase === "revealed" ? { ...game.answers } : null,
+    roundAnswers: phase === "voting" ? roundAnswers(game) : null,
     posts: phase === "votePosts" || phase === "removal" ? [...game.posts] : null,
     removal: phase === "removal" ? game.removal : null,
     votedCount: game.votedCount(),
@@ -70,6 +73,16 @@ export function screenView(s: Session, now: number): ScreenView {
     canSkip: game.canSkip(),
     winner: game.winner,
   };
+}
+
+// The vote follows the round's three prompts, so those are the last three answer sets in the transcript.
+function roundAnswers(game: Game): Partial<Record<Letter, string[]>> {
+  const sets = game.transcript.filter((entry) => entry.kind === "answers").slice(-3);
+  const result: Partial<Record<Letter, string[]>> = {};
+  for (const p of game.players) {
+    if (!p.out) result[p.letter] = sets.map((entry) => entry.answers?.[p.letter] ?? "…");
+  }
+  return result;
 }
 
 /** The screen's view plus the one phone's own role, letter, rejoin code, draft and vote. */

@@ -195,6 +195,38 @@ describe("phase-dependent fields", () => {
     expect(removal.removal!.tally).toBeDefined();
   });
 
+  it("shows each player still in their three answers from this round, only while voting", async () => {
+    const { session, game, voters } = startGame();
+    expect(screenView(session, Date.now()).roundAnswers).toBeNull();
+    await playToVoting(game);
+    const target = game.players.find((p) => p.kind === "agent")!;
+    const round1 = screenView(session, Date.now()).roundAnswers!;
+    expect(Object.keys(round1).sort()).toEqual(["A", "B", "C", "D", "E", "F"]);
+    for (const p of game.players) {
+      expect(round1[p.letter]).toEqual(game.transcript.filter((e) => e.kind === "answers").map((e) => e.answers![p.letter]));
+    }
+    for (const phone of voters) game.vote(phone.id, game.phaseId, target.letter, "sus");
+    game.closeVote();
+    expect(screenView(session, Date.now()).roundAnswers).toBeNull();
+    game.next();
+    expect(game.removal!.removed).toBe(target.letter);
+    game.next();
+    await runToDeadline(game);
+    game.next();
+    expect(screenView(session, Date.now()).roundAnswers).toBeNull();
+    await runToDeadline(game);
+    game.next();
+    await runToDeadline(game);
+    game.next();
+    expect(game.phase).toBe("voting");
+    const round2 = screenView(session, Date.now()).roundAnswers!;
+    expect(round2[target.letter]).toBeUndefined();
+    const round2Sets = game.transcript.filter((e) => e.kind === "answers").slice(-3);
+    for (const p of game.players.filter((x) => !x.out)) {
+      expect(round2[p.letter]).toEqual(round2Sets.map((e) => e.answers![p.letter]));
+    }
+  });
+
   it("computes remainingMs from the deadline, floored at 0, and null when untimed", async () => {
     const { session, game } = startGame();
     const now = Date.now();

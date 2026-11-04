@@ -163,11 +163,17 @@
   }
 
   function renderGame(v) {
+    // While the room votes the rows fill the screen, so the vote count moves up here.
     els.progress.textContent = v.phase === "ended"
       ? "Game over"
-      : "Round " + v.round + " · prompt " + v.promptInRound;
+      : v.phase === "voting"
+        ? "Round " + v.round + " · vote · " + v.votedCount + " of " + v.rosterCount + " voted"
+        : "Round " + v.round + " · prompt " + v.promptInRound;
 
     els.tiles.textContent = "";
+    // While the room votes, each player is a row with their three answers from this round, so voters can compare.
+    var rows = v.phase === "voting" && v.roundAnswers ? v.roundAnswers : null;
+    els.tiles.classList.toggle("rows", rows !== null);
     v.players.forEach(function (p) {
       var cell = el("div", "cell");
       var cls = "tile" + (p.out ? " out" : "") + (p.revealedKind ? " revealed " + p.revealedKind : "");
@@ -178,13 +184,18 @@
       if (v.phase === "revealed" && !p.out && v.answers) {
         cell.appendChild(el("p", "answer", v.answers[p.letter] || "…"));
       }
+      if (rows && rows[p.letter]) {
+        var list = el("div", "round-answers");
+        rows[p.letter].forEach(function (answer) { list.appendChild(el("p", "answer", answer || "…")); });
+        cell.appendChild(list);
+      }
       els.tiles.appendChild(cell);
     });
 
     els.detail.textContent = "";
     if (v.phase === "answering" || v.phase === "revealed") {
       els.detail.appendChild(el("p", "prompt", v.prompt || ""));
-    } else if (v.phase === "voting") {
+    } else if (v.phase === "voting" && !rows) {
       els.detail.appendChild(el("p", "status", v.votedCount + " of " + v.rosterCount + " voted"));
     } else if (v.phase === "votePosts") {
       var posts = el("div", "posts");

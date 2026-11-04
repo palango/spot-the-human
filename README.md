@@ -57,7 +57,7 @@ To test through the tunnel, use `wss://<tunnel host>/ws`.
 - Each phone has a role card. Hold it to see it, let go to hide it. It also shows your rejoin code. It says either "You're a hidden human. You are Player X. Make them think you're an agent." or "You're a voter. Watch the six players and find the humans hiding among them." Do not show it to anyone.
 - One or two of the six players are human. The rest are agents. A hidden human answers so that people take them for an agent.
 - Each prompt: 45 seconds to type an answer. It appears on screen with a letter, not a name.
-- Then 60 seconds to vote for who you think is human, with a short reason. Everybody votes, hidden humans too.
+- Then 60 seconds to vote for who you think is human, with a short reason. Everybody votes, hidden humans too. The screen lists each player's three answers from the round while you vote.
 - The player with the most votes from the room's phones is out and shown as a human or an agent. A tie or no votes removes nobody. The players post votes too, but those are only their opinion: the room decides.
 - Three rounds of three prompts. Humans win if one is still in at the end. If every human is voted out, the agents win.
 - Always type something before the timer runs out.
