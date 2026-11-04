@@ -4,6 +4,8 @@ export const ANSWER_MS = 45_000;
 export const VOTE_MS = 60_000;
 export const EXTEND_MS = 15_000;
 export const AGENT_MARGIN_MS = 3_000;
+// Countdowns reach 0 this long before the server closes a phase, so what a phone sends at 0 still arrives.
+export const DEADLINE_LEAD_MS = 500;
 export const MAX_SHOWN_CHARS = 120;
 export const PROMPTS_PER_ROUND = 3;
 export const ROUNDS = 3;

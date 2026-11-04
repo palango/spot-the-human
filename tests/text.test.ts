@@ -16,12 +16,21 @@ describe("normalizeShown", () => {
     expect(normalizeShown("a".repeat(200))).toHaveLength(120);
   });
 
+  it("strips emoji, which agents never type, so they can't mark a human", () => {
+    expect(normalizeShown("lol 😂😂")).toBe("lol");
+    expect(normalizeShown("👍🏽 ok")).toBe("ok");
+    expect(normalizeShown("🇮🇳 mumbai ❤️ chai")).toBe("mumbai chai");
+    expect(normalizeShown("👨‍👩‍👧 family")).toBe("family");
+    expect(normalizeShown("🙃")).toBe("…");
+    expect(normalizeShown("3 chai 2 coffee")).toBe("3 chai 2 coffee");
+  });
+
   it("strips listed symbols but keeps × and collapses spaces", () => {
     expect(normalizeShown("17 × 23 = 391")).toBe("17 × 23 391");
   });
 
-  it("keeps letters in any script and emoji", () => {
-    expect(normalizeShown("मुंबई traffic 🚗")).toBe("मुंबई traffic 🚗");
+  it("keeps letters in any script", () => {
+    expect(normalizeShown("मुंबई traffic 🚗")).toBe("मुंबई traffic");
   });
 
   it("turns newlines into spaces", () => {

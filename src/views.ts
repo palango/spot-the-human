@@ -1,3 +1,4 @@
+import { DEADLINE_LEAD_MS } from "./config.js";
 import type { Game, Session } from "./game.js";
 import type { Letter, PhaseName, PlayerPost, RemovalResult } from "./types.js";
 
@@ -9,7 +10,7 @@ export interface ScreenView {
   round: number;
   promptInRound: number;
   prompt: string | null;
-  remainingMs: number | null;
+  remainingMs: number | null; // to the end of the countdown, DEADLINE_LEAD_MS before the phase closes
   /** Empty in the lobby. revealedKind is set for out players, and for everyone once the game has ended. */
   players: { letter: Letter; out: boolean; revealedKind: Kind | null }[];
   answers: Partial<Record<Letter, string>> | null; // revealed only
@@ -56,7 +57,7 @@ export function screenView(s: Session, now: number): ScreenView {
     round: game.round,
     promptInRound: game.promptInRound,
     prompt: game.prompt,
-    remainingMs: game.deadline === null ? null : Math.max(0, game.deadline - now),
+    remainingMs: game.deadline === null ? null : Math.max(0, game.deadline - now - DEADLINE_LEAD_MS),
     players: game.players.map((p) => ({
       letter: p.letter,
       out: p.out,

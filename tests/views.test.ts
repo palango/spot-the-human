@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Game, Session } from "../src/game.js";
 import { PromptPool } from "../src/prompts.js";
+import { DEADLINE_LEAD_MS } from "../src/config.js";
 import { phoneView, screenView } from "../src/views.js";
 import { ScriptedBrain } from "./helpers.js";
 
@@ -239,7 +240,9 @@ describe("phase-dependent fields", () => {
   it("computes remainingMs from the deadline, floored at 0, and null when untimed", async () => {
     const { session, game } = startGame();
     const now = Date.now();
-    expect(screenView(session, now).remainingMs).toBe(game.deadline! - now);
+    // Countdowns end DEADLINE_LEAD_MS before the server closes, so keystrokes sent at 0 still arrive.
+    expect(screenView(session, now).remainingMs).toBe(game.deadline! - now - DEADLINE_LEAD_MS);
+    expect(screenView(session, game.deadline! - DEADLINE_LEAD_MS).remainingMs).toBe(0);
     expect(screenView(session, game.deadline! + 5000).remainingMs).toBe(0);
     await runToDeadline(game);
     expect(screenView(session, Date.now()).remainingMs).toBeNull();
