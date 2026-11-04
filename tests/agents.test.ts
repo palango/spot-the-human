@@ -6,6 +6,7 @@ import {
   type CallReport,
   ClaudeBrain,
   PERSONAS,
+  ANSWER_STYLES,
   buildAnswerMessage,
   buildSystemPrompt,
   buildVoteMessage,
@@ -79,6 +80,15 @@ describe("buildAnswerMessage", () => {
     expect(message).toContain("i used a calculator");
     expect(message).toContain("too vague");
     expect(message).toMatch(/E.*agent/);
+  });
+
+  it("gives the five agents five different answer styles on a prompt, and moves each to another on the next", () => {
+    const styleOf = (message: string) => ANSWER_STYLES.findIndex((style) => message.includes(style));
+    const first = PERSONAS.map((_, i) => styleOf(buildAnswerMessage({ ...ctx, personaIndex: i })));
+    const next = PERSONAS.map((_, i) => styleOf(buildAnswerMessage({ ...ctxWithHistory, personaIndex: i })));
+    expect(new Set(first)).toEqual(new Set([0, 1, 2, 3, 4]));
+    expect(new Set(next)).toEqual(new Set([0, 1, 2, 3, 4]));
+    first.forEach((style, i) => expect(next[i]).not.toBe(style));
   });
 });
 
