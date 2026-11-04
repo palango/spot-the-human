@@ -107,3 +107,9 @@ Records deviations from the plan.
 - Headless check (Chrome 156 over CDP, server with `SKIP_AGENT_CHECK=1`, driver in the scratchpad): all 19 checks passed. Host bar after reload with a clean URL; lobby label both ways; Skip works with `phaseId`; New game arms, ignores a click 0 ms later, ends the game at 800 ms; Reset armed after a double click, disarmed after 3 s, resets on a confirm 800 ms later; with the server frozen (SIGSTOP) for 5 s during answering, the phone showed "Reconnecting…", opened a new socket, and came back to answering after SIGCONT. Phone lobby at 390 px: the longer label fits on one line.
 - Not verified: the `visibilitychange` and `online` reconnects (headless Chrome can't hide the page or drop the network for an open socket here), and everything on real phones. The README rehearsal list has a lock-for-10-s check for this.
 - Not run: `npm run smoke` and the agent check with a real key (no credentials here).
+
+## Audit fixes (2026-11-04)
+
+- A full-code audit found the screen could give the human away; Paul chose the fixes.
+- Every game plays all three rounds, against the spec's "if every human is out before that, the game ends there": ending early told the room how many humans there were. Paul's decision.
+- Close vote waits for every agent vote to settle (a failed call counts), with the vote deadline as the backstop. An early close used to post "…" for agents next to the human's real post.

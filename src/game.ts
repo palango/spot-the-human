@@ -212,6 +212,10 @@ export class Game {
   private readonly votes = new Map<string, RoomVote>();
   private readonly agentAnswers = new Map<Letter, string>();
   private readonly agentVotes = new Map<Letter, AgentVote>();
+  /** Agents whose vote call has settled this vote, failed ones included. */
+  private readonly agentVotesIn = new Set<Letter>();
+  /** Close vote was pressed while agent votes were still out. */
+  private closeRequested = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(opts: GameOptions) {
@@ -296,8 +300,12 @@ export class Game {
     this.onChange();
   }
 
+  // Closing before every agent vote is back would post "…" for those agents next to the human's real post, so an
+  // early close waits for the last agent vote (or the deadline, for one that never returns).
   closeVote(): void {
-    if (this.phase === "voting") this.closeVoting();
+    if (this.phase !== "voting") return;
+    if (this.allAgentVotesIn()) this.closeVoting();
+    else this.closeRequested = true;
   }
 
   skip(): void {
@@ -321,6 +329,10 @@ export class Game {
     return this.players.filter((p) => !p.out);
   }
 
+  private allAgentVotesIn(): boolean {
+    return this.inPlayers().every((p) => p.kind !== "agent" || this.agentVotesIn.has(p.letter));
+  }
+
   private isIn(letter: Letter): boolean {
     return this.players.some((p) => p.letter === letter && !p.out);
   }
@@ -335,6 +347,7 @@ export class Game {
     this.phaseId = this.nextPhaseId();
     this.phase = name;
     this.deadline = durationMs === null ? null : Date.now() + durationMs;
+    this.closeRequested = false;
     if (name === "answering" || name === "voting") {
       this.drafts.clear();
       this.votes.clear();
@@ -348,6 +361,7 @@ export class Game {
       this.posts = [];
       this.removal = null;
       this.agentVotes.clear();
+      this.agentVotesIn.clear();
       this.askAgentsToVote();
     }
     if (durationMs !== null) this.schedule(durationMs);
@@ -396,11 +410,15 @@ export class Game {
     const budgetMs = this.durations.voteMs - this.durations.agentMarginMs;
     for (const agent of this.inPlayers().filter((p) => p.kind === "agent")) {
       const ctx = this.contextFor(agent);
+      const settled = (vote: AgentVote | null) => {
+        if (this.phaseId !== phaseId || this.phase !== "voting") return;
+        if (vote) this.agentVotes.set(agent.letter, vote);
+        this.agentVotesIn.add(agent.letter);
+        if (this.closeRequested && this.allAgentVotesIn()) this.closeVoting();
+      };
       settle(() => this.brain.vote(ctx, budgetMs)).then(
-        (vote) => {
-          if (this.phaseId === phaseId && this.phase === "voting") this.agentVotes.set(agent.letter, vote);
-        },
-        () => {}, // a failed call posts "…"
+        (vote) => settled(vote),
+        () => settled(null), // a failed call posts "…"
       );
     }
   }
@@ -441,11 +459,11 @@ export class Game {
     this.enterPhase("removal", null);
   }
 
+  // Every game plays all rounds, even after the last human is out: ending early would tell the room how many
+  // humans there were.
   private finishRound(): void {
-    if (!this.players.some((p) => p.kind === "human" && !p.out)) {
-      this.end("agents");
-    } else if (this.round >= ROUNDS) {
-      this.end("humans");
+    if (this.round >= ROUNDS) {
+      this.end(this.players.some((p) => p.kind === "human" && !p.out) ? "humans" : "agents");
     } else {
       this.round += 1;
       this.promptInRound = 1;

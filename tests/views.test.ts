@@ -102,6 +102,7 @@ describe("screenView privacy", () => {
     await runToDeadline(game);
     game.next();
     check();
+    await flush();
     game.closeVote();
     check();
     expect([...seen]).toEqual(expect.arrayContaining(["answering", "revealed", "voting", "votePosts"]));
@@ -185,6 +186,7 @@ describe("phase-dependent fields", () => {
     expect(voting.posts).toBeNull();
     expect(voting.answers).toBeNull();
     expect(voting.removal).toBeNull();
+    await flush();
     game.closeVote();
     expect(screenView(session, Date.now()).posts).toHaveLength(6);
     game.next();

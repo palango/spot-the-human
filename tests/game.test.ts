@@ -268,6 +268,8 @@ describe("answering", () => {
       await playToVoting(game);
       for (const a of agents) expect(game.transcript[0]!.answers![a.letter]).toBe("…");
       game.closeVote();
+      if (opts === empty) expect(game.phase).toBe("votePosts");
+      else if ("neverResolve" in opts) await runToDeadline(game); // Close vote waits for votes that never come
       for (const a of agents) {
         expect(game.posts.find((p) => p.letter === a.letter)).toEqual({ letter: a.letter, target: null, reason: "…" });
       }
@@ -374,24 +376,29 @@ describe("voting", () => {
       expect(call.ctx.inPlayers.sort()).toEqual(LETTERS);
       expect(call.ctx.prompt).toBeUndefined();
     }
+    await flush();
     game.closeVote();
     expect(game.transcript).toHaveLength(4);
     expect(brain.voteCalls[0]!.ctx.transcript).toHaveLength(3);
   });
 
   it("a late agent vote from an earlier round is dropped", async () => {
-    // Round 1 votes resolve 150 s after they were asked, inside round 2's vote window.
-    const brain = new ScriptedBrain({ delayMs: 150_000 });
-    const { game, agents, phones } = startGame(2, { brain });
+    // Round 1 votes resolve 200 s after they were asked: round 1's vote runs to its 60 s deadline, round 2 takes
+    // 3 x 45 s, so they land 5 s into round 2's vote window.
+    const brain = new ScriptedBrain({ delayMs: 200_000 });
+    const { game, agents } = startGame(2, { brain });
     const target = agents[0]!.letter;
     brain.opts.votes = Object.fromEntries(agents.map((a) => [a.letter, { target, reason: "stale" }]));
-    await playRound(game, phones, null);
+    await playToVoting(game);
+    await runToDeadline(game);
+    game.next();
     brain.opts = { neverResolve: true };
     game.next();
     await playToVoting(game);
     await vi.advanceTimersByTimeAsync(20_000);
     expect(game.phase).toBe("voting");
     game.closeVote();
+    await runToDeadline(game);
     for (const a of agents) {
       expect(game.posts.find((p) => p.letter === a.letter)).toEqual({ letter: a.letter, target: null, reason: "…" });
     }
@@ -499,6 +506,42 @@ describe("voting", () => {
     expect(game.transcript.at(-1)).toEqual({ kind: "removal", removal: game.removal });
   });
 
+  it("Close vote waits for agent votes still out, then closes as soon as the last arrives", async () => {
+    const { game, agents, phones } = startGame(2, { brain: new ScriptedBrain({ delayMs: 5_000 }) });
+    await playToVoting(game);
+    voteAll(game, phones, agents[0]!.letter);
+    await vi.advanceTimersByTimeAsync(1_000);
+    game.closeVote();
+    expect(game.phase).toBe("voting");
+    await vi.advanceTimersByTimeAsync(3_999);
+    expect(game.phase).toBe("voting");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(game.phase).toBe("votePosts");
+    for (const a of agents) expect(game.posts.find((p) => p.letter === a.letter)!.reason).toBe(`agent ${a.letter.toLowerCase()} pass`);
+  });
+
+  it("Close vote counts a failed agent vote as in, and falls back to the deadline for one that never returns", async () => {
+    const failing = startGame(2, { brain: new ScriptedBrain({ fail: true }) });
+    await playToVoting(failing.game);
+    failing.game.closeVote();
+    expect(failing.game.phase).toBe("votePosts");
+
+    const brain = new ScriptedBrain();
+    const { game } = startGame(2, { brain });
+    for (let i = 0; i < 2; i++) {
+      await runToDeadline(game);
+      game.next();
+    }
+    await runToDeadline(game);
+    brain.opts.neverResolve = true; // only the vote calls hang
+    game.next();
+    expect(game.phase).toBe("voting");
+    game.closeVote();
+    expect(game.phase).toBe("voting");
+    await runToDeadline(game);
+    expect(game.phase).toBe("votePosts");
+  });
+
   it("a tie at the top or zero votes removes nobody", async () => {
     const { game, agents, phones } = startGame(2);
     await playToVoting(game);
@@ -537,6 +580,7 @@ describe("voting", () => {
     expect(game.phase).toBe("voting");
     game.vote(gone.phoneId!, game.phaseId, still.letter, "i know who");
     expect(game.votedCount()).toBe(1);
+    await flush();
     game.closeVote();
     expect(game.posts.map((p) => p.letter)).not.toContain(gone.letter);
     game.next();
@@ -554,9 +598,17 @@ describe("voting", () => {
 });
 
 describe("end and replay", () => {
-  it("agents win when the last human is removed", async () => {
-    const { game, humans, phones } = startGame(1);
+  it("plays all three rounds after the last human is out, so the room can't count humans, and the agents win", async () => {
+    const { game, humans, agents, phones } = startGame(1);
     await playRound(game, phones, humans[0]!.letter);
+    expect(game.removal).toMatchObject({ removed: humans[0]!.letter, kind: "human" });
+    game.next();
+    expect(game.phase).toBe("answering");
+    expect(game.round).toBe(2);
+    await playRound(game, phones, agents[0]!.letter);
+    game.next();
+    expect(game.round).toBe(3);
+    await playRound(game, phones, null);
     expect(game.winner).toBeNull();
     game.next();
     expect(game.phase).toBe("ended");

@@ -31,7 +31,7 @@ Options: `PORT` (default 3000; change the tunnel URL to match), `HOST_KEY` (defa
 
 The tunnel URL changes on every `cloudflared` start. If you restart it, restart the server with the new `PUBLIC_URL`.
 
-The host buttons: Start (with 1 human, 2 humans, or 1 or 2, where the server picks in secret and needs at least 2 phones in), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. Next, +15 s, Close vote and Skip act once on a double click; a second click needs to come at least 0.6 seconds after the first. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
+The host buttons: Start (with 1 human, 2 humans, or 1 or 2, where the server picks in secret and needs at least 2 phones in), Next, +15 s, Close vote, Skip prompt, New game, Reset. New game during a game and Reset both turn red on the first click and act only on a second click between 0.6 and 3 seconds later, so a double click does nothing. Close vote ends the vote as soon as every agent has voted (usually a few seconds), so no agent post shows as "…" next to a human's real one. Next, +15 s, Close vote and Skip act once on a double click; a second click needs to come at least 0.6 seconds after the first. New game after a game has ended takes one click. Reset forgets every phone, so use it only between sessions.
 
 ## If something breaks
 
@@ -59,7 +59,7 @@ To test through the tunnel, use `wss://<tunnel host>/ws`.
 - Each prompt: 45 seconds to type an answer. It appears on screen with a letter, not a name.
 - Then 60 seconds to vote for who you think is human, with a short reason. Everybody votes, hidden humans too. The screen lists each player's three answers from the round while you vote.
 - The player with the most votes from the room's phones is out and shown as a human or an agent. A tie or no votes removes nobody. The players post votes too, but those are only their opinion: the room decides.
-- Three rounds of three prompts. Humans win if one is still in at the end. If every human is voted out, the agents win.
+- Three rounds of three prompts, always all three, even once every human is out, so nobody can count the humans. Humans win if one is still in at the end; otherwise the agents win.
 - Always type something before the timer runs out.
 - If your phone locks or the page reloads, reopen the page. If it says "Game in progress", type the rejoin code shown on your role card. Hold the role card to see it, and write it down.
 
