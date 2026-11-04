@@ -72,7 +72,7 @@ Phone page
 - The draft keeps up with typing (300 ms delay); lock the phone mid-answer, unlock, and the draft is still there and still counts at the deadline.
 - Switch to another app mid-answer and back. Same check.
 - Refresh the page mid-answer, and again mid-vote. Draft, vote and reason come back.
-- Rejoin: open the page in a private tab (new identity), then enter the code from the other tab. A wrong code shows "That code did not work."
+- Rejoin: open the page in a private tab (new identity), then enter the code from the other tab. A wrong code shows "That code did not work." After 32 wrong codes in a minute from anyone, every rejoin is refused for the rest of that minute, so a right code may need a second try.
 - Hold-to-see card: press and hold shows the role, release hides it. No long-press menu, no text selection. Hold it and turn the phone to the next seat: it must be unreadable from there. Locking or switching apps while holding hides it.
 - Layout at the real screen size (about 390 px wide) with the keyboard open: the Send button and the vote buttons stay reachable, nothing overflows sideways.
 - Vote: pick a letter, type a reason, change the letter, and check that only players still in appear after a removal.

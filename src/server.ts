@@ -5,7 +5,7 @@ import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
 import { WebSocket, WebSocketServer } from "ws";
-import { LETTERS, REJOIN_MAX_FAILS, TICK_MS } from "./config.js";
+import { LETTERS, REJOIN_FAILS_PER_WINDOW, REJOIN_MAX_FAILS, REJOIN_WINDOW_MS, TICK_MS } from "./config.js";
 import { type Durations, Session } from "./game.js";
 import type { PromptPool } from "./prompts.js";
 import type { AgentBrain, Letter } from "./types.js";
@@ -19,6 +19,7 @@ export interface ServerOptions {
   pool: PromptPool;
   durations?: Durations; // tests only
   heartbeatMs?: number; // tests only
+  rejoinWindowMs?: number; // tests only
 }
 
 export interface RunningServer {
@@ -68,6 +69,9 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   const hostKey = Buffer.from(opts.hostKey);
   const qrSvg = await QRCode.toString(opts.publicUrl, { type: "svg" });
   const clients = new Set<Client>();
+  const rejoinWindowMs = opts.rejoinWindowMs ?? REJOIN_WINDOW_MS;
+  /** Times of recent wrong rejoin codes from any connection, oldest first. */
+  const recentRejoinFails: number[] = [];
 
   let broadcastPending: ReturnType<typeof setImmediate> | null = null;
   const scheduleBroadcast = () => {
@@ -128,12 +132,17 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
   }
 
   function onRejoin(client: Client, msg: Incoming): void {
+    const now = Date.now();
+    while (recentRejoinFails.length > 0 && recentRejoinFails[0]! <= now - rejoinWindowMs) recentRejoinFails.shift();
+    // Past the cap, even a right code is refused until the window moves on, so guessing gains nothing.
+    const capped = recentRejoinFails.length >= REJOIN_FAILS_PER_WINDOW;
     const code = typeof msg.code === "string" ? msg.code.trim().toUpperCase() : "";
-    const phone = code === "" ? undefined : session.phoneByRejoinCode(code);
+    const phone = capped || code === "" ? undefined : session.phoneByRejoinCode(code);
     if (phone) {
       bindPhone(client, phone.id);
       return;
     }
+    if (!capped) recentRejoinFails.push(now);
     client.rejoinFails += 1;
     if (client.rejoinFails >= REJOIN_MAX_FAILS) client.ws.close(1008, "too many wrong codes");
     else send(client, { t: "error", reason: "bad-code" });

@@ -1,7 +1,7 @@
 import { request } from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import WebSocket from "ws";
-import { REJOIN_MAX_FAILS } from "../src/config.js";
+import { REJOIN_FAILS_PER_WINDOW, REJOIN_MAX_FAILS } from "../src/config.js";
 import type { Durations } from "../src/game.js";
 import { PromptPool } from "../src/prompts.js";
 import { startServer } from "../src/server.js";
@@ -99,7 +99,7 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => s.close()));
 });
 
-async function setup(durations: Partial<Durations> = {}, heartbeatMs?: number) {
+async function setup(durations: Partial<Durations> = {}, heartbeatMs?: number, rejoinWindowMs?: number) {
   const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
   const server = await startServer({
     port: 0,
@@ -109,6 +109,7 @@ async function setup(durations: Partial<Durations> = {}, heartbeatMs?: number) {
     pool,
     durations: { answerMs: 300, voteMs: 300, extendMs: 300, agentMarginMs: 50, ...durations },
     heartbeatMs,
+    rejoinWindowMs,
   });
   servers.push(server);
   const connect = async (options?: WebSocket.ClientOptions) => {
@@ -275,6 +276,29 @@ describe("server", () => {
     const view = await p.client.view((v) => v.you.vote.reason === "not sure yet");
     expect(view.you.vote.target).toBeNull();
     expect(view.votedCount).toBe(0);
+  });
+
+  it("caps wrong rejoin codes across all connections, so reconnecting doesn't reset the limit", async () => {
+    const { connect, phone } = await setup({}, undefined, 1_500);
+    const p = await phone();
+    const code = p.view.you.rejoinCode;
+    for (let c = 0; c < REJOIN_FAILS_PER_WINDOW / (REJOIN_MAX_FAILS - 1); c++) {
+      const guesser = await connect();
+      for (let i = 1; i < REJOIN_MAX_FAILS; i++) {
+        guesser.send({ t: "rejoin", code: "WRONG1" });
+        await guesser.next((m) => m.t === "error");
+      }
+      guesser.ws.close();
+    }
+    const blocked = await connect();
+    blocked.send({ t: "rejoin", code });
+    expect(await blocked.next((m) => m.t === "error")).toEqual({ t: "error", reason: "bad-code" });
+    expect(blocked.received.filter((m) => m.t === "you")).toEqual([]);
+
+    await new Promise((resolve) => setTimeout(resolve, 1_600));
+    const later = await connect();
+    later.send({ t: "rejoin", code });
+    expect((await later.next((m) => m.t === "you")).phoneId).toBe(p.phoneId);
   });
 
   it("late joiner waits then plays next game", async () => {
