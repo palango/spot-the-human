@@ -431,9 +431,7 @@ describe("voting", () => {
     expect(game.voteOf(phones[2]!.id)).toEqual({ target: null, reason: "" });
     game.closeVote();
     game.next();
-    expect(game.removal!.tally[y]).toBe(2);
-    expect(game.removal!.tally[x]).toBe(0);
-    for (const letter of LETTERS) expect(game.removal!.tally[letter]).toBeTypeOf("number");
+    expect(game.removal!.tally).toEqual({ [y]: 2 });
   });
 
   it("posts one vote per player still in", async () => {
@@ -501,8 +499,8 @@ describe("voting", () => {
     expect(game.phase).toBe("removal");
     expect(target.out).toBe(true);
     expect(game.removal).toMatchObject({ removed: target.letter, kind: "agent" });
-    expect(game.removal!.tally[target.letter]).toBe(7);
-    expect(game.removal!.tally[agents[1]!.letter]).toBe(5);
+    // Only the leader's count: a full tally would let the room match posts to votes and clear agents.
+    expect(game.removal!.tally).toEqual({ [target.letter]: 7 });
     expect(game.transcript.at(-1)).toEqual({ kind: "removal", removal: game.removal });
   });
 
@@ -549,12 +547,12 @@ describe("voting", () => {
     voteAll(game, phones.slice(6), agents[1]!.letter);
     game.closeVote();
     game.next();
-    expect(game.removal).toMatchObject({ removed: null, kind: null });
+    expect(game.removal).toEqual({ removed: null, kind: null, tally: { [agents[0]!.letter]: 6, [agents[1]!.letter]: 6 } });
     expect(game.players.every((p) => !p.out)).toBe(true);
 
     game.next();
     await playRound(game, phones, null);
-    expect(game.removal).toEqual({ removed: null, kind: null, tally: Object.fromEntries(LETTERS.map((l) => [l, 0])) });
+    expect(game.removal).toEqual({ removed: null, kind: null, tally: {} });
     expect(game.players.every((p) => !p.out)).toBe(true);
   });
 

@@ -454,7 +454,8 @@ export class Game {
     const leaders = LETTERS.filter((l) => tally[l] === top);
     const removed = top > 0 && leaders.length === 1 ? this.players.find((p) => p.letter === leaders[0]) : undefined;
     if (removed) removed.out = true;
-    this.removal = { removed: removed?.letter ?? null, kind: removed?.kind ?? null, tally };
+    const leading = top > 0 ? Object.fromEntries(leaders.map((l) => [l, top])) : {};
+    this.removal = { removed: removed?.letter ?? null, kind: removed?.kind ?? null, tally: leading };
     this.transcript.push({ kind: "removal", removal: this.removal });
     this.enterPhase("removal", null);
   }

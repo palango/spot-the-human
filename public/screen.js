@@ -158,8 +158,14 @@
     }
     // Only the room's phone votes remove a player; the players' posts before this are commentary. Saying so stops
     // a tie after six posts against one player from looking like a lost vote.
-    var parts = v.players.map(function (p) { return p.letter + " " + (r && r.tally ? r.tally[p.letter] || 0 : 0); });
-    els.removalTally.textContent = "The room's votes decide, not the players' posts: " + parts.join(" · ");
+    // The server sends only the leading counts, so this never shows which players got no votes.
+    var leaders = r && r.tally ? Object.keys(r.tally) : [];
+    var count = leaders.length > 0 ? r.tally[leaders[0]] : 0;
+    var votes = count + (count === 1 ? " vote" : " votes");
+    var line = leaders.length === 0 ? "Nobody got a room vote"
+      : leaders.length === 1 ? "Player " + leaders[0] + " got " + votes
+      : "Players " + leaders.join(" and ") + " tied on " + votes + " each";
+    els.removalTally.textContent = "The room's votes decide, not the players' posts. " + line + ".";
   }
 
   function renderGame(v) {

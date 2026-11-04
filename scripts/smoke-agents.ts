@@ -62,7 +62,7 @@ const lateTranscript: TranscriptEntry[] = [
       { letter: "F", target: "D", reason: "d obviously" },
     ],
   },
-  { kind: "removal", removal: { removed: "D", kind: "agent", tally: { A: 1, B: 0, C: 1, D: 8, E: 0, F: 2 } } },
+  { kind: "removal", removal: { removed: "D", kind: "agent", tally: { D: 8 } } },
   {
     kind: "answers",
     prompt: "Describe the worst part of your commute today.",
@@ -88,7 +88,7 @@ const lateTranscript: TranscriptEntry[] = [
       { letter: "F", target: "E", reason: "e says yaar too much" },
     ],
   },
-  { kind: "removal", removal: { removed: null, kind: null, tally: { A: 3, B: 2, C: 3, D: 0, E: 2, F: 2 } } },
+  { kind: "removal", removal: { removed: null, kind: null, tally: { A: 3, C: 3 } } },
   {
     kind: "answers",
     prompt: "What would you do with 1 ETH right now?",

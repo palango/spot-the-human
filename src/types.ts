@@ -12,7 +12,9 @@ export interface Player {
 }
 
 export interface PlayerPost { letter: Letter; target: Letter | null; reason: string } // reason already normalized
-export interface RemovalResult { removed: Letter | null; kind: "agent" | "human" | null; tally: Record<Letter, number> }
+// tally holds only the leading counts (the removed player, or the tied leaders; empty with no votes). A full tally
+// would let the room match each post's target to the room votes and prove which players are agents.
+export interface RemovalResult { removed: Letter | null; kind: "agent" | "human" | null; tally: Partial<Record<Letter, number>> }
 
 export interface TranscriptEntry {           // what the screen has shown, in order
   kind: "answers" | "posts" | "removal";

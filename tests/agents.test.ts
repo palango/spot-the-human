@@ -39,7 +39,7 @@ const history: TranscriptEntry[] = [
   },
   {
     kind: "removal",
-    removal: { removed: "E", kind: "agent", tally: { A: 1, B: 0, C: 2, D: 0, E: 5, F: 0 } },
+    removal: { removed: "E", kind: "agent", tally: { E: 5 } },
   },
 ];
 

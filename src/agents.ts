@@ -54,12 +54,13 @@ function describeEntry(entry: TranscriptEntry, self: Letter): string {
     case "removal": {
       const removal = entry.removal;
       if (!removal) return "room vote: nothing shown";
-      const tally = LETTERS.map((l) => `${l} ${removal.tally[l]}`).join(", ");
+      const leading = Object.entries(removal.tally).map(([l, n]) => `${l} ${n}`);
+      const tally = leading.length > 0 ? leading.join(", ") : "none";
       const outcome =
         removal.removed === null
           ? "nobody was removed (a tie or no votes)"
           : `the room removed ${label(removal.removed)}, who was ${removal.kind === "human" ? "a human" : "an agent"}`;
-      return `room vote: ${outcome}. room votes: ${tally}`;
+      return `room vote: ${outcome}. top room votes: ${tally}`;
     }
   }
 }
