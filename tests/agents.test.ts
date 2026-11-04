@@ -7,6 +7,7 @@ import {
   ClaudeBrain,
   PERSONAS,
   ANSWER_STYLES,
+  VOTE_ANGLES,
   buildAnswerMessage,
   buildSystemPrompt,
   buildVoteMessage,
@@ -96,6 +97,16 @@ describe("buildVoteMessage", () => {
   it("asks for the two-line vote format", () => {
     expect(buildVoteMessage(ctx)).toContain("VOTE:");
     expect(buildVoteMessage(ctx)).toContain("REASON:");
+  });
+
+  it("gives the five agents five different angles on a vote, and moves each to another next round", () => {
+    const angleOf = (message: string) => VOTE_ANGLES.findIndex((angle) => message.includes(angle));
+    const round1 = PERSONAS.map((_, i) => angleOf(buildVoteMessage({ ...ctx, personaIndex: i })));
+    const afterVote: AgentContext = { ...ctx, transcript: [...history, { kind: "posts", posts: [] }] };
+    const round2 = PERSONAS.map((_, i) => angleOf(buildVoteMessage({ ...afterVote, personaIndex: i })));
+    expect(new Set(round1)).toEqual(new Set([0, 1, 2, 3, 4]));
+    expect(new Set(round2)).toEqual(new Set([0, 1, 2, 3, 4]));
+    round1.forEach((angle, i) => expect(round2[i]).not.toBe(angle));
   });
 
   it("lists the players still in, without the voter", () => {
