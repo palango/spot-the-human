@@ -16,6 +16,7 @@ export interface RemovalResult { removed: Letter | null; kind: "agent" | "human"
 
 export interface TranscriptEntry {           // what the screen has shown, in order
   kind: "answers" | "posts" | "removal";
+  round?: number;              // answers entries: the round the prompt belonged to
   prompt?: string;
   answers?: Partial<Record<Letter, string>>;
   posts?: PlayerPost[];

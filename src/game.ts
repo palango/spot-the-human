@@ -412,7 +412,7 @@ export class Game {
       answers[p.letter] = normalizeShown(raw ?? "");
     }
     this.answers = answers;
-    this.transcript.push({ kind: "answers", prompt: this.prompt!, answers: { ...answers } });
+    this.transcript.push({ kind: "answers", round: this.round, prompt: this.prompt!, answers: { ...answers } });
     this.enterPhase("revealed", null);
   }
 

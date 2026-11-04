@@ -346,7 +346,7 @@ describe("answering", () => {
     const { game } = startGame(2);
     const prompt = game.prompt;
     await runToDeadline(game);
-    expect(game.transcript).toEqual([{ kind: "answers", prompt, answers: game.answers }]);
+    expect(game.transcript).toEqual([{ kind: "answers", round: 1, prompt, answers: game.answers }]);
     game.next();
     expect(game.promptInRound).toBe(2);
     expect(game.phase).toBe("answering");

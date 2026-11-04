@@ -195,36 +195,43 @@ describe("phase-dependent fields", () => {
     expect(removal.removal!.tally).toBeDefined();
   });
 
-  it("shows each player still in their three answers from this round, only while voting", async () => {
-    const { session, game, voters } = startGame();
+  it("lists this round's answers on the screen only while voting, never on phones", async () => {
+    const { session, game, humans, humanPhones, voters } = startGame();
+    // Humans type the prompt back, so each answer set differs from every other round's.
+    const typePrompt = () => humanPhones.forEach((phone) => game.draft(phone.id, game.phaseId, `re ${game.prompt}`));
+    const playPrompts = async () => {
+      const prompts: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        prompts.push(game.prompt!);
+        typePrompt();
+        await runToDeadline(game);
+        game.next();
+      }
+      await flush();
+      return prompts;
+    };
     expect(screenView(session, Date.now()).roundAnswers).toBeNull();
-    await playToVoting(game);
-    const target = game.players.find((p) => p.kind === "agent")!;
+    const round1Prompts = await playPrompts();
+    expect(game.phase).toBe("voting");
     const round1 = screenView(session, Date.now()).roundAnswers!;
     expect(Object.keys(round1).sort()).toEqual(["A", "B", "C", "D", "E", "F"]);
-    for (const p of game.players) {
-      expect(round1[p.letter]).toEqual(game.transcript.filter((e) => e.kind === "answers").map((e) => e.answers![p.letter]));
-    }
+    for (const h of humans) expect(round1[h.letter]).toEqual(round1Prompts.map((p) => `re ${p}`));
+    expect(phoneView(session, voters[0]!.id, Date.now()).roundAnswers).toBeNull();
+
+    const target = game.players.find((p) => p.kind === "agent")!;
     for (const phone of voters) game.vote(phone.id, game.phaseId, target.letter, "sus");
     game.closeVote();
     expect(screenView(session, Date.now()).roundAnswers).toBeNull();
     game.next();
     expect(game.removal!.removed).toBe(target.letter);
     game.next();
-    await runToDeadline(game);
-    game.next();
     expect(screenView(session, Date.now()).roundAnswers).toBeNull();
-    await runToDeadline(game);
-    game.next();
-    await runToDeadline(game);
-    game.next();
-    expect(game.phase).toBe("voting");
+
+    const round2Prompts = await playPrompts();
     const round2 = screenView(session, Date.now()).roundAnswers!;
     expect(round2[target.letter]).toBeUndefined();
-    const round2Sets = game.transcript.filter((e) => e.kind === "answers").slice(-3);
-    for (const p of game.players.filter((x) => !x.out)) {
-      expect(round2[p.letter]).toEqual(round2Sets.map((e) => e.answers![p.letter]));
-    }
+    for (const h of humans) expect(round2[h.letter]).toEqual(round2Prompts.map((p) => `re ${p}`));
+    for (const a of game.players.filter((p) => p.kind === "agent" && !p.out)) expect(round2[a.letter]).toHaveLength(3);
   });
 
   it("computes remainingMs from the deadline, floored at 0, and null when untimed", async () => {

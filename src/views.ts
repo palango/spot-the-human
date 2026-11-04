@@ -13,7 +13,7 @@ export interface ScreenView {
   /** Empty in the lobby. revealedKind is set for out players, and for everyone once the game has ended. */
   players: { letter: Letter; out: boolean; revealedKind: Kind | null }[];
   answers: Partial<Record<Letter, string>> | null; // revealed only
-  /** Voting only: each player still in, with their answers to this round's three prompts in order. */
+  /** Screen only, while voting: each player still in, with their answers to this round's prompts in order. */
   roundAnswers: Partial<Record<Letter, string[]>> | null;
   posts: PlayerPost[] | null; // votePosts and removal only
   removal: RemovalResult | null; // removal only
@@ -75,9 +75,8 @@ export function screenView(s: Session, now: number): ScreenView {
   };
 }
 
-// The vote follows the round's three prompts, so those are the last three answer sets in the transcript.
 function roundAnswers(game: Game): Partial<Record<Letter, string[]>> {
-  const sets = game.transcript.filter((entry) => entry.kind === "answers").slice(-3);
+  const sets = game.transcript.filter((entry) => entry.kind === "answers" && entry.round === game.round);
   const result: Partial<Record<Letter, string[]>> = {};
   for (const p of game.players) {
     if (!p.out) result[p.letter] = sets.map((entry) => entry.answers?.[p.letter] ?? "…");
@@ -94,6 +93,7 @@ export function phoneView(s: Session, phoneId: string, now: number): PhoneView {
   const isHumanIn = player !== undefined && !player.out;
   return {
     ...screenView(s, now),
+    roundAnswers: null, // only the shared screen lists them; phones never read it
     you: {
       inRoster,
       role: !inRoster ? null : isHumanIn ? "human" : "voter",
