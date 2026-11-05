@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Game, Session, type HumanCount, type PhoneRecord } from "../src/game.js";
+import { Game, Session, type PhoneRecord } from "../src/game.js";
 import { PromptPool } from "../src/prompts.js";
 import type { Letter, Player } from "../src/types.js";
 import { ScriptedBrain, seededRandom } from "./helpers.js";
@@ -23,9 +23,9 @@ function setup(opts: SetupOptions = {}) {
   return { session, brain, pool, onChange, phones };
 }
 
-function startGame(humanCount: HumanCount = 2, opts: SetupOptions = {}) {
+function startGame(opts: SetupOptions = {}) {
   const s = setup(opts);
-  expect(s.session.start(humanCount)).toEqual({ ok: true });
+  expect(s.session.start()).toEqual({ ok: true });
   const game = s.session.game!;
   const humans = game.players.filter((p) => p.kind === "human");
   const agents = game.players.filter((p) => p.kind === "agent");
@@ -85,12 +85,13 @@ afterEach(() => {
 });
 
 describe("start", () => {
-  it("deals six players with the chosen number of hidden humans", () => {
+  it("deals six players: three hidden humans on different phones and three agents", () => {
     const now = Date.now();
-    const { game, humans, phones, session, onChange } = startGame(2);
+    const { game, humans, agents, phones, session, onChange } = startGame();
     expect(game.players.map((p) => p.letter).sort()).toEqual(LETTERS);
-    expect(humans).toHaveLength(2);
-    expect(humans[0]!.phoneId).not.toBe(humans[1]!.phoneId);
+    expect(humans).toHaveLength(3);
+    expect(agents).toHaveLength(3);
+    expect(new Set(humans.map((h) => h.phoneId)).size).toBe(3);
     for (const h of humans) expect(game.roster.has(h.phoneId!)).toBe(true);
     expect(game.roster.size).toBe(12);
     expect([...game.roster].sort()).toEqual(phones.map((p) => p.id).sort());
@@ -103,16 +104,19 @@ describe("start", () => {
     expect(onChange).toHaveBeenCalled();
   });
 
-  it("gives agents distinct personas from 0 to 4", () => {
-    const { agents } = startGame(1);
-    expect(agents.map((a) => a.personaIndex).sort()).toEqual([0, 1, 2, 3, 4]);
+  it("gives the agents distinct personas from 0 to 4", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const personas = startGame({ random: seededRandom(seed) }).agents.map((a) => a.personaIndex!);
+      expect(new Set(personas).size).toBe(3);
+      for (const index of personas) expect([0, 1, 2, 3, 4]).toContain(index);
+    }
   });
 
   it("refuses with too few ready phones, too few prompts, or a game running", () => {
-    expect(setup({ phones: 1 }).session.start(2)).toEqual({ ok: false, reason: "too-few-ready" });
-    expect(setup({ prompts: 8 }).session.start(2)).toEqual({ ok: false, reason: "too-few-prompts" });
-    const { session } = startGame(2);
-    expect(session.start(2)).toEqual({ ok: false, reason: "not-in-lobby" });
+    expect(setup({ phones: 2 }).session.start()).toEqual({ ok: false, reason: "too-few-ready" });
+    expect(setup({ prompts: 8 }).session.start()).toEqual({ ok: false, reason: "too-few-prompts" });
+    const { session } = startGame();
+    expect(session.start()).toEqual({ ok: false, reason: "not-in-lobby" });
   });
 
   it("deals human only to connected phones but keeps disconnected ready phones in the roster", () => {
@@ -126,47 +130,31 @@ describe("start", () => {
         random: seededRandom(seed),
         isConnected: (id) => connected.has(id),
       });
-      const phones = Array.from({ length: 4 }, () => session.addPhone());
-      connected.add(phones[1]!.id);
-      connected.add(phones[3]!.id);
-      expect(session.start(2)).toEqual({ ok: true });
+      const phones = Array.from({ length: 5 }, () => session.addPhone());
+      for (const i of [0, 2, 3]) connected.add(phones[i]!.id);
+      expect(session.start()).toEqual({ ok: true });
       const game = session.game!;
       const humanIds = game.players.filter((p) => p.kind === "human").map((p) => p.phoneId).sort();
-      expect(humanIds).toEqual([phones[1]!.id, phones[3]!.id].sort());
+      expect(humanIds).toEqual([phones[0]!.id, phones[2]!.id, phones[3]!.id].sort());
       expect([...game.roster].sort()).toEqual(phones.map((p) => p.id).sort());
     }
   });
 
-  it("refuses when fewer ready phones are connected than the human count", () => {
+  it("refuses when fewer than three ready phones are connected", () => {
     const pool = new PromptPool(Array.from({ length: 40 }, (_, i) => `prompt ${i}`));
-    const session = new Session({ brain: new ScriptedBrain(), pool, onChange: vi.fn(), isConnected: () => false });
-    session.addPhone();
-    session.addPhone();
-    expect(session.start(1)).toEqual({ ok: false, reason: "too-few-ready" });
+    const connected = new Set<string>();
+    const session = new Session({ brain: new ScriptedBrain(), pool, onChange: vi.fn(), isConnected: (id) => connected.has(id) });
+    const phones = Array.from({ length: 5 }, () => session.addPhone());
+    connected.add(phones[0]!.id);
+    connected.add(phones[1]!.id);
+    expect(session.start()).toEqual({ ok: false, reason: "too-few-ready" });
     expect(session.phase).toBe("lobby");
-  });
-
-  it("deals one or two humans at random for a random start", () => {
-    const counts = new Set<number>();
-    for (let seed = 1; seed <= 20; seed++) {
-      const { humans } = startGame("random", { random: seededRandom(seed) });
-      expect([1, 2]).toContain(humans.length);
-      counts.add(humans.length);
-    }
-    expect(counts).toEqual(new Set([1, 2]));
-  });
-
-  it("refuses a random start with fewer than two connected ready phones, whatever the roll", () => {
-    for (let seed = 1; seed <= 20; seed++) {
-      const { session } = setup({ phones: 1, random: seededRandom(seed) });
-      expect(session.start("random")).toEqual({ ok: false, reason: "too-few-ready" });
-    }
   });
 
   it("picks different human letters for different seeds", () => {
     const picks = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
-      const { humans } = startGame(2, { random: seededRandom(seed) });
+      const { humans } = startGame({ random: seededRandom(seed) });
       picks.add(humans.map((h) => h.letter).sort().join(""));
     }
     expect(picks.size).toBeGreaterThan(1);
@@ -186,7 +174,7 @@ describe("start", () => {
   it("uses custom durations for timers and agent budgets", async () => {
     const now = Date.now();
     const durations = { answerMs: 1_000, voteMs: 2_000, extendMs: 500, agentMarginMs: 100 };
-    const { game, brain } = startGame(2, { durations });
+    const { game, brain } = startGame({ durations });
     expect(game.deadline).toBe(now + 1_000);
     expect(brain.answerCalls[0]!.budgetMs).toBe(900);
     game.extend();
@@ -199,7 +187,7 @@ describe("start", () => {
 
 describe("answering", () => {
   it("shows the human's last draft, normalized", async () => {
-    const { game, humans } = startGame(2);
+    const { game, humans } = startGame();
     const h = humans[0]!;
     game.draft(h.phoneId!, game.phaseId, "first try");
     game.draft(h.phoneId!, game.phaseId, "I think, 391!");
@@ -209,7 +197,7 @@ describe("answering", () => {
   });
 
   it("ignores drafts with a stale phaseId or from phones outside the roster", async () => {
-    const { game, humans, session } = startGame(2);
+    const { game, humans, session } = startGame();
     const h = humans[0]!;
     game.draft(h.phoneId!, game.phaseId - 1, "stale");
     const latecomer = session.addPhone();
@@ -222,7 +210,7 @@ describe("answering", () => {
   });
 
   it("reveals one answer per player still in and never a voter's draft", async () => {
-    const { game, voters } = startGame(2);
+    const { game, voters } = startGame();
     for (const v of voters) game.draft(v.id, game.phaseId, "voter secret");
     expect(game.draftOf(voters[0]!.id)).toBe("voter secret");
     await vi.advanceTimersByTimeAsync(29_999);
@@ -235,17 +223,18 @@ describe("answering", () => {
   });
 
   it("shows an ellipsis for a human with no draft and agent answers from the brain", async () => {
-    const { game, humans, agents } = startGame(2);
+    const { game, humans, agents } = startGame();
     await runToDeadline(game);
     for (const h of humans) expect(game.answers[h.letter]).toBe("…");
     for (const a of agents) expect(game.answers[a.letter]).toBe(`agent ${a.letter.toLowerCase()}`);
   });
 
   it("slow agent shows ellipsis and late result is dropped", async () => {
-    const slow: Letter[] = ["A", "B", "C"];
-    const brain = new ScriptedBrain({ delayMs: { A: 50_000, B: 50_000, C: 50_000 } });
-    const { game, agents } = startGame(2, { brain });
-    expect(brain.answerCalls).toHaveLength(4);
+    // Only F is fast, so at least two of the three agents are slow whatever letters they get.
+    const slow: Letter[] = ["A", "B", "C", "D", "E"];
+    const brain = new ScriptedBrain({ delayMs: { A: 50_000, B: 50_000, C: 50_000, D: 50_000, E: 50_000 } });
+    const { game, agents } = startGame({ brain });
+    expect(brain.answerCalls).toHaveLength(3);
     for (const call of brain.answerCalls) expect(call.budgetMs).toBe(27_000);
     await vi.advanceTimersByTimeAsync(30_000);
     expect(game.phase).toBe("revealed");
@@ -264,7 +253,7 @@ describe("answering", () => {
       votes: Object.fromEntries(LETTERS.map((l) => [l, { target: null, reason: "" }])),
     };
     for (const opts of [{ fail: true }, { neverResolve: true }, empty]) {
-      const { game, agents } = startGame(1, { brain: new ScriptedBrain(opts) });
+      const { game, agents } = startGame({ brain: new ScriptedBrain(opts) });
       await playToVoting(game);
       for (const a of agents) expect(game.transcript[0]!.answers![a.letter]).toBe("…");
       game.closeVote();
@@ -278,7 +267,7 @@ describe("answering", () => {
 
   it("extend during answering moves the deadline by 15 s and delays the reveal", async () => {
     const now = Date.now();
-    const { game, onChange } = startGame(2);
+    const { game, onChange } = startGame();
     const id = game.phaseId;
     onChange.mockClear();
     game.extend();
@@ -292,7 +281,7 @@ describe("answering", () => {
   });
 
   it("skip replaces the prompt, clears drafts and re-asks the agents", async () => {
-    const { game, humans, brain } = startGame(2);
+    const { game, humans, brain } = startGame();
     const h = humans[0]!;
     const oldPrompt = game.prompt;
     const oldId = game.phaseId;
@@ -306,8 +295,8 @@ describe("answering", () => {
     expect(game.draftOf(h.phoneId!)).toBe("");
     game.draft(h.phoneId!, oldId, "late old draft");
     expect(game.draftOf(h.phoneId!)).toBe("");
-    expect(brain.answerCalls).toHaveLength(8);
-    for (const call of brain.answerCalls.slice(4)) expect(call.ctx.prompt).toBe(game.prompt);
+    expect(brain.answerCalls).toHaveLength(6);
+    for (const call of brain.answerCalls.slice(3)) expect(call.ctx.prompt).toBe(game.prompt);
     await runToDeadline(game);
     expect(game.answers[h.letter]).toBe("…");
     expect(game.transcript).toHaveLength(1);
@@ -318,7 +307,7 @@ describe("answering", () => {
     const all = (text: string) => Object.fromEntries(LETTERS.map((l) => [l, text]));
     // The old prompt's answers arrive at 20 s, after the new prompt's answers (6 s).
     const brain = new ScriptedBrain({ delayMs: 20_000, answers: all("old") });
-    const { game, agents } = startGame(2, { brain });
+    const { game, agents } = startGame({ brain });
     await vi.advanceTimersByTimeAsync(5_000);
     brain.opts = { delayMs: 1_000, answers: all("new") };
     game.skip();
@@ -329,7 +318,7 @@ describe("answering", () => {
   });
 
   it("skip is disabled when it would leave too few prompts", () => {
-    const { game, pool } = startGame(2, { prompts: 9 });
+    const { game, pool } = startGame({ prompts: 9 });
     const before = snapshot(game);
     expect(game.canSkip()).toBe(false);
     game.skip();
@@ -338,14 +327,14 @@ describe("answering", () => {
   });
 
   it("skip stays enabled while spare prompts remain", () => {
-    const { game } = startGame(2, { prompts: 10 });
+    const { game } = startGame({ prompts: 10 });
     expect(game.canSkip()).toBe(true);
     game.skip();
     expect(game.canSkip()).toBe(false);
   });
 
   it("appends revealed answers to the transcript", async () => {
-    const { game } = startGame(2);
+    const { game } = startGame();
     const prompt = game.prompt;
     await runToDeadline(game);
     expect(game.transcript).toEqual([{ kind: "answers", round: 1, prompt, answers: game.answers }]);
@@ -360,7 +349,7 @@ describe("answering", () => {
 
 describe("voting", () => {
   it("opens after the third reveal and asks agents with what the screen showed", async () => {
-    const { game, brain, agents } = startGame(2);
+    const { game, brain, agents } = startGame();
     for (let i = 0; i < 3; i++) {
       await runToDeadline(game);
       expect(game.phase).toBe("revealed");
@@ -386,7 +375,7 @@ describe("voting", () => {
     // Round 1 votes resolve 200 s after they were asked: round 1's vote runs to its 60 s deadline, round 2 takes
     // 3 x 30 s, so they land 50 s into round 2's vote window.
     const brain = new ScriptedBrain({ delayMs: 200_000 });
-    const { game, agents } = startGame(2, { brain });
+    const { game, agents } = startGame({ brain });
     const target = agents[0]!.letter;
     brain.opts.votes = Object.fromEntries(agents.map((a) => [a.letter, { target, reason: "stale" }]));
     await playToVoting(game);
@@ -405,7 +394,7 @@ describe("voting", () => {
   });
 
   it("vote deadline closes the vote and extend delays it", async () => {
-    const { game } = startGame(2);
+    const { game } = startGame();
     await playToVoting(game);
     game.extend();
     await vi.advanceTimersByTimeAsync(74_999);
@@ -416,7 +405,7 @@ describe("voting", () => {
   });
 
   it("counts one room vote per roster phone, last vote wins", async () => {
-    const { game, phones, agents, session } = startGame(2);
+    const { game, phones, agents, session } = startGame();
     await playToVoting(game);
     const [x, y] = [agents[0]!.letter, agents[1]!.letter];
     game.vote(phones[0]!.id, game.phaseId, x, "first");
@@ -436,7 +425,7 @@ describe("voting", () => {
 
   it("posts one vote per player still in", async () => {
     const brain = new ScriptedBrain();
-    const { game, humans, agents } = startGame(2, { brain });
+    const { game, humans, agents } = startGame({ brain });
     const [h1, h2] = humans as [Player, Player];
     brain.opts.votes = Object.fromEntries(agents.map((a) => [a.letter, { target: h1.letter, reason: "Way too POLISHED!!" }]));
     await playToVoting(game);
@@ -453,7 +442,7 @@ describe("voting", () => {
   });
 
   it("keeps a reason typed before a letter: posted for a human, not counted as a room vote", async () => {
-    const { game, humans, phones } = startGame(2);
+    const { game, humans, phones } = startGame();
     const h = humans[0]!;
     const voter = phones.find((p) => !humans.some((x) => x.phoneId === p.id))!;
     await playToVoting(game);
@@ -468,7 +457,7 @@ describe("voting", () => {
   });
 
   it("human self-vote counts in room but posts no target", async () => {
-    const { game, humans } = startGame(2);
+    const { game, humans } = startGame();
     const h = humans[0]!;
     await playToVoting(game);
     game.vote(h.phoneId!, game.phaseId, h.letter, "trust me");
@@ -482,8 +471,8 @@ describe("voting", () => {
 
   it("an agent voting for itself, an out player or an unknown letter posts no target", async () => {
     const brain = new ScriptedBrain();
-    const { game, agents, phones } = startGame(2, { brain });
-    const [self, unknown, outVoter, removed] = agents as [Player, Player, Player, Player];
+    const { game, agents, phones } = startGame({ brain });
+    const [self, unknown, removed] = agents as [Player, Player, Player];
     brain.opts.votes = {
       [self.letter]: { target: self.letter, reason: "me" },
       [unknown.letter]: { target: "Z" as Letter, reason: "who" },
@@ -492,16 +481,16 @@ describe("voting", () => {
     expect(game.posts.find((p) => p.letter === self.letter)!.target).toBeNull();
     expect(game.posts.find((p) => p.letter === unknown.letter)!.target).toBeNull();
     expect(game.removal!.removed).toBe(removed.letter);
-    brain.opts.votes = { [outVoter.letter]: { target: removed.letter, reason: "ghost" } };
+    brain.opts.votes = { [self.letter]: { target: removed.letter, reason: "ghost" } };
     game.next();
     await playToVoting(game);
     game.closeVote();
-    expect(game.posts.find((p) => p.letter === outVoter.letter)).toEqual({ letter: outVoter.letter, target: null, reason: "ghost" });
+    expect(game.posts.find((p) => p.letter === self.letter)).toEqual({ letter: self.letter, target: null, reason: "ghost" });
     expect(game.posts.find((p) => p.letter === removed.letter)).toBeUndefined();
   });
 
   it("closeVote shows posts now, then next removes the top vote-getter", async () => {
-    const { game, agents, phones } = startGame(2);
+    const { game, agents, phones } = startGame();
     const target = agents[0]!;
     await playToVoting(game);
     voteAll(game, phones.slice(0, 7), target.letter);
@@ -520,7 +509,7 @@ describe("voting", () => {
   });
 
   it("Close vote waits for agent votes still out, then closes as soon as the last arrives", async () => {
-    const { game, agents, phones } = startGame(2, { brain: new ScriptedBrain({ delayMs: 5_000 }) });
+    const { game, agents, phones } = startGame({ brain: new ScriptedBrain({ delayMs: 5_000 }) });
     await playToVoting(game);
     voteAll(game, phones, agents[0]!.letter);
     await vi.advanceTimersByTimeAsync(1_000);
@@ -534,13 +523,13 @@ describe("voting", () => {
   });
 
   it("Close vote counts a failed agent vote as in, and falls back to the deadline for one that never returns", async () => {
-    const failing = startGame(2, { brain: new ScriptedBrain({ fail: true }) });
+    const failing = startGame({ brain: new ScriptedBrain({ fail: true }) });
     await playToVoting(failing.game);
     failing.game.closeVote();
     expect(failing.game.phase).toBe("votePosts");
 
     const brain = new ScriptedBrain();
-    const { game } = startGame(2, { brain });
+    const { game } = startGame({ brain });
     for (let i = 0; i < 2; i++) {
       await runToDeadline(game);
       game.next();
@@ -556,7 +545,7 @@ describe("voting", () => {
   });
 
   it("a tie at the top or zero votes removes nobody", async () => {
-    const { game, agents, phones } = startGame(2);
+    const { game, agents, phones } = startGame();
     await playToVoting(game);
     voteAll(game, phones.slice(0, 6), agents[0]!.letter);
     voteAll(game, phones.slice(6), agents[1]!.letter);
@@ -572,7 +561,7 @@ describe("voting", () => {
   });
 
   it("a removed human keeps voting but is no longer shown", async () => {
-    const { game, humans, phones } = startGame(2);
+    const { game, humans, phones } = startGame();
     const [gone, still] = humans as [Player, Player];
     await playRound(game, phones, gone.letter);
     expect(game.removal).toMatchObject({ removed: gone.letter, kind: "human" });
@@ -601,7 +590,7 @@ describe("voting", () => {
   });
 
   it("rejects votes for a player already out", async () => {
-    const { game, agents, phones } = startGame(2);
+    const { game, agents, phones } = startGame();
     await playRound(game, phones, agents[0]!.letter);
     game.next();
     await playToVoting(game);
@@ -611,29 +600,58 @@ describe("voting", () => {
 });
 
 describe("end and replay", () => {
-  it("plays all three rounds after the last human is out, so the room can't count humans, and the agents win", async () => {
-    const { game, humans, agents, phones } = startGame(1);
+  it("a human out in round 1 doesn't settle the game", async () => {
+    const { game, humans, phones } = startGame();
     await playRound(game, phones, humans[0]!.letter);
     expect(game.removal).toMatchObject({ removed: humans[0]!.letter, kind: "human" });
     game.next();
     expect(game.phase).toBe("answering");
     expect(game.round).toBe(2);
-    await playRound(game, phones, agents[0]!.letter);
+  });
+
+  it("the agents win as soon as the room has caught two humans, without playing round 3", async () => {
+    const { game, humans, phones } = startGame();
+    await playRound(game, phones, humans[0]!.letter);
     game.next();
-    expect(game.round).toBe(3);
-    await playRound(game, phones, null);
+    await playRound(game, phones, humans[1]!.letter);
     expect(game.winner).toBeNull();
     game.next();
     expect(game.phase).toBe("ended");
+    expect(game.round).toBe(2);
     expect(game.winner).toBe("agents");
     expect(game.deadline).toBeNull();
   });
 
-  it("humans win when one is still in after the third round", async () => {
-    const { game, humans, phones } = startGame(2);
-    await playRound(game, phones, humans[0]!.letter);
+  it("the humans win after round 2 with none out, since one vote left can't catch two", async () => {
+    const { game, agents, phones } = startGame();
+    await playRound(game, phones, agents[0]!.letter);
     game.next();
     await playRound(game, phones, null);
+    game.next();
+    expect(game.phase).toBe("ended");
+    expect(game.round).toBe(2);
+    expect(game.winner).toBe("humans");
+  });
+
+  it("with one human out after round 2, round 3 decides: a second human out and the agents win", async () => {
+    const { game, humans, agents, phones } = startGame();
+    await playRound(game, phones, humans[0]!.letter);
+    game.next();
+    await playRound(game, phones, agents[0]!.letter);
+    game.next();
+    expect(game.phase).toBe("answering");
+    expect(game.round).toBe(3);
+    await playRound(game, phones, humans[1]!.letter);
+    game.next();
+    expect(game.phase).toBe("ended");
+    expect(game.winner).toBe("agents");
+  });
+
+  it("with one human out after round 2, round 3 decides: two humans still in and the humans win", async () => {
+    const { game, humans, agents, phones } = startGame();
+    await playRound(game, phones, agents[0]!.letter);
+    game.next();
+    await playRound(game, phones, humans[0]!.letter);
     game.next();
     expect(game.round).toBe(3);
     await playRound(game, phones, null);
@@ -644,7 +662,7 @@ describe("end and replay", () => {
   });
 
   it("next after a removal starts the next round at prompt 1", async () => {
-    const { game, agents, phones } = startGame(2);
+    const { game, agents, phones } = startGame();
     await playRound(game, phones, agents[0]!.letter);
     const now = Date.now();
     game.next();
@@ -656,12 +674,15 @@ describe("end and replay", () => {
   });
 
   it("newGame returns to the lobby with phones kept and prompts not reused", async () => {
-    const { session, phones, pool } = startGame(2, { prompts: 18 });
+    const { session, phones, pool, humans } = startGame({ prompts: 18 });
     const first = session.game!;
-    for (let round = 0; round < 3; round++) {
-      await playRound(first, phones, null);
+    // One human out in round 1 and nobody after, so the game runs all three rounds.
+    await playRound(first, phones, humans[0]!.letter);
+    for (let round = 1; round < 3; round++) {
       first.next();
+      await playRound(first, phones, null);
     }
+    first.next();
     expect(first.phase).toBe("ended");
     const firstPrompts = first.transcript.filter((t) => t.kind === "answers").map((t) => t.prompt);
     const ids = phones.map((p) => [p.id, p.rejoinCode]);
@@ -670,23 +691,27 @@ describe("end and replay", () => {
     expect(session.phase).toBe("lobby");
     expect([...session.phones.values()].map((p) => [p.id, p.rejoinCode])).toEqual(ids);
     expect([...session.phones.values()].every((p) => !p.ready)).toBe(true);
-    expect(session.start(2)).toEqual({ ok: false, reason: "too-few-ready" });
+    expect(session.start()).toEqual({ ok: false, reason: "too-few-ready" });
 
     for (const p of phones) session.setReady(p.id, true);
     expect(pool.remaining).toBe(9);
-    expect(session.start(2)).toEqual({ ok: true });
+    expect(session.start()).toEqual({ ok: true });
     const second = session.game!;
     expect(second).not.toBe(first);
-    for (let round = 0; round < 3; round++) {
-      await playRound(second, phones, null);
+    const secondHuman = second.players.find((p) => p.kind === "human")!;
+    await playRound(second, phones, secondHuman.letter);
+    for (let round = 1; round < 3; round++) {
       second.next();
+      await playRound(second, phones, null);
     }
+    second.next();
+    expect(second.phase).toBe("ended");
     const secondPrompts = second.transcript.filter((t) => t.kind === "answers").map((t) => t.prompt);
     expect(new Set([...firstPrompts, ...secondPrompts]).size).toBe(18);
   });
 
   it("drafts and votes tagged with an earlier game's phaseId are ignored", async () => {
-    const { session, phones } = startGame(2);
+    const { session, phones } = startGame();
     const first = session.game!;
     const firstAnswering = first.phaseId;
     await playToVoting(first);
@@ -694,7 +719,7 @@ describe("end and replay", () => {
 
     session.newGame();
     for (const p of phones) session.setReady(p.id, true);
-    expect(session.start(2)).toEqual({ ok: true });
+    expect(session.start()).toEqual({ ok: true });
     const second = session.game!;
     expect(second.phaseId).toBeGreaterThan(firstVoting);
     const human = second.players.find((p) => p.kind === "human")!;
@@ -705,15 +730,15 @@ describe("end and replay", () => {
     expect(second.votedCount()).toBe(0);
 
     session.reset();
-    const phone = session.addPhone();
-    expect(session.start(1)).toEqual({ ok: true });
+    const [phone] = Array.from({ length: 3 }, () => session.addPhone()) as [PhoneRecord];
+    expect(session.start()).toEqual({ ok: true });
     expect(session.game!.phaseId).toBeGreaterThan(second.phaseId);
     session.game!.draft(phone.id, firstAnswering, "stale after reset");
     expect(session.game!.draftOf(phone.id)).toBe("");
   });
 
   it("newGame mid-game stops the old game's timers", async () => {
-    const { session, onChange } = startGame(2);
+    const { session, onChange } = startGame();
     const old = session.game!;
     session.newGame();
     onChange.mockClear();
@@ -723,13 +748,13 @@ describe("end and replay", () => {
   });
 
   it("setReady only works in the lobby", () => {
-    const { session, phones } = startGame(2);
+    const { session, phones } = startGame();
     session.setReady(phones[0]!.id, false);
     expect(phones[0]!.ready).toBe(true);
   });
 
   it("repeated and out-of-phase host commands are no-ops", async () => {
-    const { game, phones, agents } = startGame(2);
+    const { game, phones, agents } = startGame();
     let before = snapshot(game);
     game.next();
     game.next();
@@ -775,22 +800,26 @@ describe("end and replay", () => {
     expect(game.players.filter((p) => p.out)).toHaveLength(1);
   });
 
-  it("a phone added during a game joins only after newGame and ready", () => {
-    const { session, game } = startGame(2);
-    const latecomer = session.addPhone();
-    expect(latecomer.ready).toBe(false);
-    expect(game.roster.has(latecomer.id)).toBe(false);
-    expect(game.playerOfPhone(latecomer.id)).toBeUndefined();
+  it("phones added during a game join only after newGame and ready", () => {
+    const { session, game } = startGame();
+    const latecomers = Array.from({ length: 3 }, () => session.addPhone());
+    for (const latecomer of latecomers) {
+      expect(latecomer.ready).toBe(false);
+      expect(game.roster.has(latecomer.id)).toBe(false);
+      expect(game.playerOfPhone(latecomer.id)).toBeUndefined();
+    }
     session.newGame();
-    session.setReady(latecomer.id, true);
-    expect(session.start(1)).toEqual({ ok: true });
+    for (const latecomer of latecomers) session.setReady(latecomer.id, true);
+    expect(session.start()).toEqual({ ok: true });
     const next = session.game!;
-    expect(next.roster).toEqual(new Set([latecomer.id]));
-    expect(next.playerOfPhone(latecomer.id)).toMatchObject({ kind: "human", phoneId: latecomer.id });
+    expect(next.roster).toEqual(new Set(latecomers.map((p) => p.id)));
+    for (const latecomer of latecomers) {
+      expect(next.playerOfPhone(latecomer.id)).toMatchObject({ kind: "human", phoneId: latecomer.id });
+    }
   });
 
   it("reset wipes phones, the game and prompt use", () => {
-    const { session, pool } = startGame(2, { prompts: 9 });
+    const { session, pool } = startGame({ prompts: 9 });
     expect(pool.remaining).toBe(8);
     session.reset();
     expect(session.phones.size).toBe(0);

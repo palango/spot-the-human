@@ -55,9 +55,9 @@ describe("PERSONAS", () => {
 });
 
 describe("buildSystemPrompt", () => {
-  it("keeps the human count vague", () => {
-    expect(buildSystemPrompt(0)).toContain("one or two");
-    expect(buildSystemPrompt(0)).not.toMatch(/exactly (one|two)/);
+  it("says three of the six players are humans", () => {
+    expect(buildSystemPrompt(0)).toContain("Three are AI agents like you and three are humans pretending to be AI agents.");
+    expect(buildSystemPrompt(0)).not.toContain("one or two");
   });
 
   it("adds the persona for the index", () => {

@@ -3,6 +3,8 @@ import {
   AGENT_MARGIN_MS,
   ANSWER_MS,
   EXTEND_MS,
+  HUMANS,
+  HUMANS_CAUGHT_TO_WIN,
   LETTERS,
   PROMPTS_PER_ROUND,
   ROUNDS,
@@ -23,9 +25,6 @@ import type {
 
 export interface PhoneRecord { id: string; rejoinCode: string; ready: boolean }
 
-/** How many hidden humans the host asks for; "random" lets the server pick one or two in secret. */
-export type HumanCount = 1 | 2 | "random";
-
 export interface Durations { answerMs: number; voteMs: number; extendMs: number; agentMarginMs: number }
 
 const DEFAULT_DURATIONS: Durations = {
@@ -37,7 +36,7 @@ const DEFAULT_DURATIONS: Durations = {
 
 const REJOIN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const REJOIN_LENGTH = 6;
-// One persona per agent; a game has at most five agents.
+// The engine deals each agent a different one of these.
 const PERSONAS = [0, 1, 2, 3, 4];
 const NO_POST = "…";
 
@@ -126,15 +125,13 @@ export class Session {
     return undefined;
   }
 
-  start(choice: HumanCount): { ok: true } | { ok: false; reason: "not-in-lobby" | "too-few-ready" | "too-few-prompts" } {
+  start(): { ok: true } | { ok: false; reason: "not-in-lobby" | "too-few-ready" | "too-few-prompts" } {
     if (this.phase !== "lobby") return { ok: false, reason: "not-in-lobby" };
     const ready = [...this.phones.values()].filter((p) => p.ready).map((p) => p.id);
     // A phone that locked or closed its tab still votes, but a hidden human who can't answer would show "…" all game.
     const humanCandidates = ready.filter((id) => this.isConnected(id));
-    // A random start checks against the larger count before rolling, so a refusal never reveals the roll.
-    if (humanCandidates.length < (choice === "random" ? 2 : choice)) return { ok: false, reason: "too-few-ready" };
+    if (humanCandidates.length < HUMANS) return { ok: false, reason: "too-few-ready" };
     if (!this.pool.canStartGame()) return { ok: false, reason: "too-few-prompts" };
-    const humanCount = choice === "random" ? (this.random() < 0.5 ? 1 : 2) : choice;
     this.game = new Game({
       brain: this.brain,
       pool: this.pool,
@@ -142,7 +139,7 @@ export class Session {
       onChange: this.onChange,
       durations: this.durations,
       roster: ready,
-      humanPhoneIds: shuffle(humanCandidates, this.random).slice(0, humanCount),
+      humanPhoneIds: shuffle(humanCandidates, this.random).slice(0, HUMANS),
       nextPhaseId: () => ++this.lastPhaseId,
     });
     this.game.begin();
@@ -188,7 +185,7 @@ export interface GameOptions {
   nextPhaseId: () => number;
 }
 
-/** One game: three rounds of three prompts and a vote. Owns every phase change and deadline. */
+/** One game: up to three rounds of three prompts and a vote. Owns every phase change and deadline. */
 export class Game {
   readonly players: Player[];
   readonly roster: Set<string>;
@@ -461,11 +458,15 @@ export class Game {
     this.enterPhase("removal", null);
   }
 
-  // Every game plays all rounds, even after the last human is out: ending early would tell the room how many
-  // humans there were.
+  // The game ends as soon as the result can't change: once the room has caught enough humans, or once the votes
+  // left (one removal each) can't catch enough. The human count is no secret, so ending early gives nothing away.
   private finishRound(): void {
-    if (this.round >= ROUNDS) {
-      this.end(this.players.some((p) => p.kind === "human" && !p.out) ? "humans" : "agents");
+    const caught = this.players.filter((p) => p.kind === "human" && p.out).length;
+    const votesLeft = ROUNDS - this.round;
+    if (caught >= HUMANS_CAUGHT_TO_WIN) {
+      this.end("agents");
+    } else if (caught + votesLeft < HUMANS_CAUGHT_TO_WIN) {
+      this.end("humans");
     } else {
       this.round += 1;
       this.promptInRound = 1;

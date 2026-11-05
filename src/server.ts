@@ -177,8 +177,7 @@ export async function startServer(opts: ServerOptions): Promise<RunningServer> {
     if (PHASE_COMMANDS.has(msg.cmd) && (game === null || msg.phaseId !== game.phaseId)) return;
     switch (msg.cmd) {
       case "start": {
-        if (msg.humans !== 1 && msg.humans !== 2 && msg.humans !== "random") return;
-        const result = session.start(msg.humans);
+        const result = session.start();
         if (!result.ok) send(client, { t: "error", reason: result.reason });
         return;
       }

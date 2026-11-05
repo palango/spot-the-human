@@ -14,7 +14,7 @@ function setup() {
 
 function startGame() {
   const s = setup();
-  s.session.start(2);
+  s.session.start();
   const game = s.session.game!;
   const humans = game.players.filter((p) => p.kind === "human");
   const humanPhones = s.phones.filter((p) => humans.some((h) => h.phoneId === p.id));
@@ -261,7 +261,8 @@ describe("phase-dependent fields", () => {
 describe("ended", () => {
   it("reveals every player's kind on screen and phones", async () => {
     const { session, game, voters } = startGame();
-    for (let i = 0; i < 3; i++) {
+    // Nobody votes, so no human is out after round 2 and the humans have won.
+    for (let i = 0; i < 2; i++) {
       await playToVoting(game);
       game.closeVote();
       game.next();

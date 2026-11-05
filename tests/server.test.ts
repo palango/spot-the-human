@@ -131,7 +131,13 @@ async function setup(durations: Partial<Durations> = {}, heartbeatMs?: number, r
     await client.view<ScreenView>();
     return client;
   };
-  return { server, connect, phone, screen };
+  /** n phones in a row, so they join in a known order. */
+  const phonesInOrder = async (n: number) => {
+    const out: Awaited<ReturnType<typeof phone>>[] = [];
+    for (let i = 0; i < n; i++) out.push(await phone());
+    return out;
+  };
+  return { server, connect, phone, phonesInOrder, screen };
 }
 
 describe("server", () => {
@@ -140,7 +146,8 @@ describe("server", () => {
     const phones = await Promise.all(Array.from({ length: 12 }, () => phone()));
     const host = await screen(HOST_KEY);
 
-    // Voters all vote for the same agent, so each round removes an agent and the game lasts three rounds.
+    // Voters catch a human in round 1 and then vote out agents, so the game runs all three rounds and the two humans
+    // still in win.
     const humanLetters = new Set<Letter>();
     phones.forEach(({ client }, i) => {
       let handled = 0;
@@ -154,7 +161,7 @@ describe("server", () => {
           client.send({ t: "draft", phaseId: view.phaseId, text: `Phone ${i} answers!` });
         } else if (view.phase === "voting") {
           handled = view.phaseId;
-          const target = view.players.find((p) => !p.out && !humanLetters.has(p.letter))!.letter;
+          const target = view.players.find((p) => !p.out && humanLetters.has(p.letter) === (view.round === 1))!.letter;
           client.send({ t: "vote", phaseId: view.phaseId, target, reason: `phone ${i} thinks so` });
         }
       });
@@ -169,21 +176,21 @@ describe("server", () => {
       }
     });
 
-    host.send({ t: "host", cmd: "start", humans: 2 });
+    host.send({ t: "host", cmd: "start" });
     const ended = await host.view<ScreenView>((v) => v.phase === "ended", 15_000);
     expect(ended.round).toBe(3);
     expect(ended.winner).toBe("humans");
     expect(ended.players.filter((p) => p.out)).toHaveLength(3);
-    expect(humanLetters.size).toBe(2);
+    expect(ended.players.filter((p) => p.out && p.revealedKind === "human")).toHaveLength(1);
+    expect(humanLetters.size).toBe(3);
     expect(host.errors()).toEqual([]);
   }, 20_000);
 
   it("reconnect keeps draft", async () => {
-    const { phone, screen } = await setup({ answerMs: 1_500 });
-    const first = await phone();
-    await phone();
+    const { phonesInOrder, phone, screen } = await setup({ answerMs: 1_500 });
+    const first = (await phonesInOrder(3))[0]!;
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 2 });
+    host.send({ t: "host", cmd: "start" });
     const answering = await first.client.view((v) => v.phase === "answering");
     const letter = answering.you.letter!;
     expect(answering.you.role).toBe("human");
@@ -202,10 +209,10 @@ describe("server", () => {
   });
 
   it("rejoin code restores identity", async () => {
-    const { connect, phone, screen } = await setup({ answerMs: 2_000 });
-    const human = await phone();
+    const { connect, phonesInOrder, screen } = await setup({ answerMs: 2_000 });
+    const human = (await phonesInOrder(3))[0]!;
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     const answering = await human.client.view((v) => v.phase === "answering");
 
     const fresh = await connect();
@@ -232,41 +239,39 @@ describe("server", () => {
     const p = await phone();
     for (const hostKey of [undefined, "wrong", HOST_KEY.slice(0, -1) + "X"]) {
       const viewer = await screen(hostKey);
-      viewer.send({ t: "host", cmd: "start", humans: 1 });
+      viewer.send({ t: "host", cmd: "start" });
       expect(await viewer.next((m) => m.t === "error")).toEqual({ t: "error", reason: "not-host" });
     }
 
     // A phone socket's host command gets no reply; the ready toggle after it proves it was read.
-    p.client.send({ t: "host", cmd: "start", humans: 1 });
+    p.client.send({ t: "host", cmd: "start" });
     p.client.send({ t: "ready", ready: false });
     const view = await p.client.view((v) => !v.you.ready);
     expect(view.phase).toBe("lobby");
     expect(p.client.errors()).toEqual([]);
 
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
   });
 
-  it("starts with a random human count and ignores any other count", async () => {
-    const { phone, screen } = await setup();
-    const phones = [await phone(), await phone()];
+  it("Start deals three hidden humans and makes the other phones voters", async () => {
+    const { phonesInOrder, screen } = await setup();
+    const phones = await phonesInOrder(5);
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 3 });
-    host.send({ t: "host", cmd: "start", humans: "two" });
-    host.send({ t: "host", cmd: "start", humans: "random" });
+    host.send({ t: "host", cmd: "start" });
     await host.view<ScreenView>((v) => v.phase === "answering");
     const roles = await Promise.all(phones.map(async (p) => (await p.client.view((v) => v.you.role !== null)).you.role));
-    expect(roles.filter((r) => r === "human").length).toBeGreaterThanOrEqual(1);
+    expect(roles.filter((r) => r === "human")).toHaveLength(3);
+    expect(roles.filter((r) => r === "voter")).toHaveLength(2);
     expect(host.errors()).toEqual([]);
   });
 
   it("keeps a vote reason sent before a letter is picked", async () => {
-    const { phone, screen } = await setup({ answerMs: 50, voteMs: 5_000 });
-    const p = await phone();
-    await phone();
+    const { phonesInOrder, screen } = await setup({ answerMs: 50, voteMs: 5_000 });
+    const p = (await phonesInOrder(3))[0]!;
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     for (let i = 0; i < 3; i++) {
       const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
       host.send({ t: "host", cmd: "next", phaseId: revealed.phaseId });
@@ -302,11 +307,10 @@ describe("server", () => {
   });
 
   it("late joiner waits then plays next game", async () => {
-    const { phone, screen } = await setup({ answerMs: 2_000 });
-    await phone();
-    await phone();
+    const { phone, phonesInOrder, screen } = await setup({ answerMs: 2_000 });
+    const [a, b] = await phonesInOrder(3);
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 2 });
+    host.send({ t: "host", cmd: "start" });
     await host.view<ScreenView>((v) => v.phase === "answering");
 
     const late = await phone();
@@ -317,9 +321,9 @@ describe("server", () => {
 
     host.send({ t: "host", cmd: "newGame" });
     await late.client.view((v) => v.phase === "lobby");
-    late.client.send({ t: "ready", ready: true });
-    await host.view<ScreenView>((v) => v.readyCount === 1);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    for (const p of [late, a!, b!]) p.client.send({ t: "ready", ready: true });
+    await host.view<ScreenView>((v) => v.readyCount === 3);
+    host.send({ t: "host", cmd: "start" });
     const playing = await late.client.view((v) => v.phase === "answering");
     expect(playing.you.inRoster).toBe(true);
     expect(playing.you.role).toBe("human");
@@ -339,10 +343,10 @@ describe("server", () => {
   });
 
   it("caps text, drops bad input and closes oversized messages", async () => {
-    const { phone, screen } = await setup({ answerMs: 2_000 });
-    const p = await phone();
+    const { phone, phonesInOrder, screen } = await setup({ answerMs: 2_000 });
+    const p = (await phonesInOrder(3))[0]!;
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     const answering = await p.client.view((v) => v.phase === "answering");
 
     p.client.send({ t: "draft", phaseId: answering.phaseId, text: "x".repeat(600) });
@@ -364,10 +368,10 @@ describe("server", () => {
   });
 
   it("resends views with a falling countdown while a deadline runs", async () => {
-    const { phone, screen } = await setup({ answerMs: 2_500 });
-    const p = await phone();
+    const { phonesInOrder, screen } = await setup({ answerMs: 2_500 });
+    const p = (await phonesInOrder(3))[0]!;
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     const first = await p.client.view((v) => v.phase === "answering");
     // Nothing is sent and nothing changes during answering, so the next view can only come from the ticker.
     const second = await p.client.view();
@@ -377,18 +381,21 @@ describe("server", () => {
   });
 
   it("never deals human to a phone with no open socket at Start", async () => {
-    const { phone, screen } = await setup({ answerMs: 2_000 });
-    const online = await phone();
+    const { phone, phonesInOrder, screen } = await setup({ answerMs: 2_000 });
+    const online = await phonesInOrder(2);
     const locked = await phone();
     await locked.client.close();
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 2 });
+    host.send({ t: "host", cmd: "start" });
     expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
 
-    host.send({ t: "host", cmd: "start", humans: 1 });
-    const playing = await online.client.view((v) => v.phase === "answering");
-    expect(playing.you.role).toBe("human");
-    expect(playing.rosterCount).toBe(2);
+    online.push(await phone());
+    host.send({ t: "host", cmd: "start" });
+    for (const p of online) {
+      const playing = await p.client.view((v) => v.phase === "answering");
+      expect(playing.you.role).toBe("human");
+      expect(playing.rosterCount).toBe(4);
+    }
     const back = await phone(locked.phoneId);
     expect(back.view.you.inRoster).toBe(true);
     expect(back.view.you.role).toBe("voter");
@@ -409,10 +416,10 @@ describe("server", () => {
   });
 
   it("ignores phase commands with a stale or missing phaseId", async () => {
-    const { phone, screen } = await setup({ answerMs: 200 });
-    await phone();
+    const { phonesInOrder, screen } = await setup({ answerMs: 200 });
+    await phonesInOrder(3);
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
 
     for (const cmd of ["next", "skip", "closeVote", "extend"]) {
@@ -427,10 +434,10 @@ describe("server", () => {
   });
 
   it("a double Next on the vote posts shows the removal", async () => {
-    const { phone, screen } = await setup({ answerMs: 200, voteMs: 200 });
-    await phone();
+    const { phonesInOrder, screen } = await setup({ answerMs: 200, voteMs: 200 });
+    await phonesInOrder(3);
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     for (let i = 0; i < 3; i++) {
       const revealed = await host.view<ScreenView>((v) => v.phase === "revealed");
       host.send({ t: "host", cmd: "next", phaseId: revealed.phaseId });
@@ -452,7 +459,7 @@ describe("server", () => {
     expect(await dead.closed).toBe(1006);
 
     const host = await screen(HOST_KEY);
-    host.send({ t: "host", cmd: "start", humans: 2 });
+    host.send({ t: "host", cmd: "start" });
     expect(await host.next((m) => m.t === "error")).toEqual({ t: "error", reason: "too-few-ready" });
     // The live phone has kept answering pings over many intervals.
     expect(live.client.ws.readyState).toBe(WebSocket.OPEN);
@@ -508,7 +515,7 @@ describe("server", () => {
  */
 async function settle(host: Client): Promise<ScreenView> {
   for (let i = 0; i < 2; i++) {
-    host.send({ t: "host", cmd: "start", humans: 1 });
+    host.send({ t: "host", cmd: "start" });
     await host.next((m) => m.t === "error" && m.reason === "not-in-lobby");
   }
   const views = host.received.filter((m) => m.t === "view");
