@@ -182,7 +182,7 @@ async function playHost(host: WebSocket, stopAfterFirstReveal: boolean): Promise
   const phase = () => screenView?.phase;
   await until("lobby", () => phase() === "lobby", 10000);
   await until("all phones ready", () => screenView!.readyCount >= phoneCount, 10000);
-  cmd("start", { humans: 2 });
+  cmd("start");
   await until("game start", () => phase() === "answering", 5000);
   let seen = screenView!.phaseId;
   while (phase() !== "ended") {

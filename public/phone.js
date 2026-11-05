@@ -335,7 +335,7 @@
     if (!you || !you.inRoster) return;
     els.roleText.textContent = you.role === "human"
       ? "You're a hidden human, Player " + you.letter + ". Make them think you're an agent. Your answers, vote and reason show on screen."
-      : "You're a voter. Watch the six players and find the humans hiding among them. Vote and say why in a few words.";
+      : "You're a voter. Watch the six players and find the three humans hiding among them. Vote and say why in a few words.";
     els.roleCode.textContent = "Rejoin code: " + you.rejoinCode;
   }
 

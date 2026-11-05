@@ -272,6 +272,7 @@ body.screen .posts { display: flex; flex-direction: column; gap: 1vmin; }
 body.screen .post { font-size: 3.6vmin; font-weight: 600; overflow-wrap: anywhere; }
 body.screen .post b { color: var(--accent); }
 body.screen .winner { font-size: 10vmin; font-weight: 800; text-align: center; color: var(--accent); }
+body.screen .caught { font-size: 5vmin; text-align: center; color: var(--muted); }
 
 body.screen .removal {
   flex: 1;
@@ -309,9 +310,6 @@ body.screen .host-bar button {
   cursor: pointer;
 }
 body.screen .host-bar button:disabled { opacity: 0.3; cursor: default; }
-body.screen .host-bar .humans { display: flex; gap: 4px; }
-body.screen .host-bar .humans button { background: transparent; color: var(--text); border-color: var(--line); }
-body.screen .host-bar .humans button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 body.screen .host-bar button.armed { background: var(--danger); border-color: var(--danger); }
 body.screen .host-info { color: var(--muted); margin-left: auto; }
 body.screen .host-error { color: var(--danger); font-weight: 700; }

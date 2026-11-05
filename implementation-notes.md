@@ -113,3 +113,13 @@ Records deviations from the plan.
 - A full-code audit found the screen could give the human away; Paul chose the fixes.
 - Every game plays all three rounds, against the spec's "if every human is out before that, the game ends there": ending early told the room how many humans there were. Paul's decision.
 - Close vote waits for every agent vote to settle (a failed call counts), with the vote deadline as the backstop. An early close used to post "…" for agents next to the human's real post.
+
+## Three humans (2026-11-05)
+
+- Paul's call after a test game: one human's answer on screen didn't feel interactive enough. Every game now deals three hidden humans and three agents (`HUMANS` in `src/config.ts`).
+- Win rule, agreed with Paul as a rough 50/50: the agents (and the room) win once two humans are out (`HUMANS_CAUGHT_TO_WIN`); otherwise the humans win. Whether it lands near 50/50 is untested and depends on the room.
+- The game ends as soon as the result can't change: after round 2 with two humans out (agents win) or none out (one vote left can't catch two, humans win). This reverses the audit's "always play three rounds", which only existed to hide the human count; the count is now public.
+- The host's 1 / 2 / 1-or-2 switch and the server's `humans` field on `start` are gone. A `start` that still carries `humans` is accepted and the field ignored. Start needs three connected ready phones.
+- Kept: only the leading room votes after a vote, and Close vote waiting for agent votes. Both still stop the room from proving which players are agents.
+- The end screen adds "N of 3 humans caught" under the winner.
+- `scripts/smoke-agents.ts` still uses its five-agent, one-human transcript. It checks every persona against the API, which is still its job; the game it describes is no longer one the engine deals.

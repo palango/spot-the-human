@@ -35,10 +35,6 @@
     removalMain: $("removal-main"),
     removalTally: $("removal-tally"),
     hostBar: $("host-bar"),
-    h1: $("h1"),
-    h2: $("h2"),
-    hRandom: $("h-random"),
-    humans: $("humans"),
     start: $("b-start"),
     next: $("b-next"),
     extend: $("b-extend"),
@@ -68,8 +64,6 @@
   var backoff = BACKOFF_MIN_MS;
   var view = null;
   var deadlineAt = null; // local clock time at which the phase ends
-  // "random" lets the server pick one or two in secret, so not even the host knows.
-  var humans = "random";
   var errorTimer = null;
 
   function send(msg) {
@@ -215,6 +209,9 @@
       els.detail.appendChild(posts);
     } else if (v.phase === "ended") {
       els.detail.appendChild(el("p", "winner", v.winner === "humans" ? "The humans win" : "The agents win"));
+      var humans = v.players.filter(function (p) { return p.revealedKind === "human"; });
+      var caught = humans.filter(function (p) { return p.out; }).length;
+      els.detail.appendChild(el("p", "caught", caught + " of " + humans.length + " humans caught"));
     }
   }
 
@@ -233,8 +230,6 @@
     if (!isHost) return;
     var p = v.phase;
     els.start.disabled = p !== "lobby";
-    // The room sees this bar, so the human count only shows while it is being chosen.
-    els.humans.hidden = p !== "lobby";
     els.next.disabled = !(p === "revealed" || p === "votePosts" || p === "removal");
     els.extend.disabled = !(p === "answering" || p === "voting");
     els.close.disabled = p !== "voting";
@@ -249,17 +244,7 @@
     send(msg);
   }
 
-  function setHumans(n) {
-    humans = n;
-    els.h1.setAttribute("aria-pressed", String(n === 1));
-    els.h2.setAttribute("aria-pressed", String(n === 2));
-    els.hRandom.setAttribute("aria-pressed", String(n === "random"));
-  }
-
-  els.h1.addEventListener("click", function () { setHumans(1); });
-  els.h2.addEventListener("click", function () { setHumans(2); });
-  els.hRandom.addEventListener("click", function () { setHumans("random"); });
-  els.start.addEventListener("click", function () { command({ cmd: "start", humans: humans }); });
+  els.start.addEventListener("click", function () { command({ cmd: "start" }); });
   // These carry the phase on screen, so the server drops a command for a phase that has closed. That alone doesn't
   // stop a double click: the new view reaches this page before the second click, which then carries the new
   // phase. So a phase command within DOUBLE_CLICK_MS of the last one is the second half of a double click and is
